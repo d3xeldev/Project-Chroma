@@ -7,15 +7,19 @@
         ".": "./src/index.ts"
     },
     "scripts": {
+        "test": "vitest run",
+        "test:watch": "vitest",
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "cn": "^0.2.4"
+        "@project-chroma/core": "workspace:*",
+        "cn": "^0.2.4",
+        "date-fns": "^4.4.0"
     },
     "devDependencies": {
         "@project-chroma/contracts": "workspace:*",
-        "@project-chroma/core": "workspace:*",
         "@types/node": "catalog:",
-        "typescript": "catalog:"
+        "typescript": "catalog:",
+        "vitest": "catalog:"
     }
 }

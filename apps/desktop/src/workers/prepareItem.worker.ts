@@ -2,12 +2,13 @@ import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
-import { v4 as uuidv4 } from "uuid";
 import sharp from "sharp";
+import { Errors, extToMime, Result, rollbackStack, type AppError } from "@project-chroma/utils";
 import { generateImageThumbnail, generateVideoThumbnail, getVideoMetadata } from "../commands/utils.ts";
 import type { ImportItem, Item } from "@project-chroma/contracts/gallery";
 
 export interface PrepareItemProps {
+    itemId: string;
     importItem: ImportItem;
     originalsDir: string;
     thumbsDir: string;
@@ -15,7 +16,7 @@ export interface PrepareItemProps {
     deleteSource: boolean;
 }
 
-export default async function prepareItem({ importItem, originalsDir, thumbsDir, adjustmentsDir, deleteSource }: PrepareItemProps): Promise<Result<Item, AppError>> {
+export default async function prepareItem({ itemId, importItem, originalsDir, thumbsDir, adjustmentsDir, deleteSource }: PrepareItemProps): Promise<Result<Item, AppError>> {
     const rollback = rollbackStack();
 
     if (!fsSync.existsSync(importItem.sourcePath)) {
@@ -35,12 +36,11 @@ export default async function prepareItem({ importItem, originalsDir, thumbsDir,
 
     const checksum = crypto.createHash("md5").update(fileData).digest("hex");
     const fileSize = fileData.length;
-    const itemId = uuidv4();
     const fileName = `${itemId}.${fileExtension}`;
     const destPath = path.join(originalsDir, fileName);
 
     try {
-        await fs.copyFile(importItem.sourcePath, destPath);
+        await fs.copyFile(importItem.sourcePath, destPath, fsSync.constants.COPYFILE_EXCL);
         rollback.push(() => fs.unlink(destPath));
     } catch (e) {
         rollback.revert();
@@ -88,6 +88,99 @@ export default async function prepareItem({ importItem, originalsDir, thumbsDir,
         await rollback.revert();
         return Result.reject(Errors.itemReadFail({ message: "Unable to prepare item metadata or thumbnail", error, details: { sourcePath: importItem.sourcePath } }));
     }
+
+    let rawOriginalName: string | null = null;
+    let rawFileSize: number | null = null;
+    let rawChecksum: string | null = null;
+    if (importItem.originalSourcePath) {
+        const originalSourcePath = importItem.originalSourcePath;
+
+        if (fsSync.existsSync(originalSourcePath)) {
+            try {
+                const origData = await fs.readFile(originalSourcePath);
+
+                rawFileSize = origData.length;
+                rawChecksum = crypto.createHash("md5").update(origData).digest("hex");
+            } catch {}
+
+            const origExt = path.extname(originalSourcePath).replace(".", "") || "";
+            const origDestName = `${itemId}-raw.${origExt}`;
+
+            try {
+                await fs.copyFile(originalSourcePath, path.join(originalsDir, origDestName), fsSync.constants.COPYFILE_EXCL);
+                rollback.push(() => fs.unlink(path.join(originalsDir, origDestName)));
+            } catch (e) {
+                rollback.revert();
+                return Result.reject(Errors.itemCopyFail({ message: "Unable to copy original item", error: e, details: { sourcePath: originalSourcePath } }));
+            }
+
+            rawOriginalName = path.basename(originalSourcePath);
+            if (deleteSource) fs.unlink(originalSourcePath);
+        }
+    }
+
+    let liveVideoName: string | null = null;
+    let liveVideoOriginalName: string | null = null;
+    if (importItem.livePath) {
+        const livePath = importItem.livePath;
+
+        if (fsSync.existsSync(livePath)) {
+            const ext = path.extname(livePath).replace(".", "") || "mov";
+            const name = `${itemId}.${ext}`;
+
+            try {
+                await fs.copyFile(livePath, path.join(originalsDir, name), fsSync.constants.COPYFILE_EXCL);
+                rollback.push(() => fs.unlink(path.join(originalsDir, name)));
+            } catch (e) {
+                rollback.revert();
+                return Result.reject(Errors.itemCopyFail({ message: "Unable to copy live video", error: e, details: { sourcePath: livePath } }));
+            }
+
+            liveVideoName = name;
+            liveVideoOriginalName = path.basename(livePath);
+            if (deleteSource) fs.unlink(livePath);
+        }
+    }
+
+    let rawLiveVideoName: string | null = null;
+    let rawLiveVideoOriginalName: string | null = null;
+    if (importItem.originalLivePath) {
+        const originalLivePath = importItem.originalLivePath;
+
+        if (fsSync.existsSync(originalLivePath)) {
+            const ext = path.extname(originalLivePath).replace(".", "") || "mov";
+            const name = `${itemId}-raw.${ext}`;
+
+            try {
+                await fs.copyFile(originalLivePath, path.join(originalsDir, name), fsSync.constants.COPYFILE_EXCL);
+                rollback.push(() => fs.unlink(path.join(originalsDir, name)));
+            } catch (e) {
+                rollback.revert();
+                return Result.reject(Errors.itemCopyFail({ message: "Unable to copy live video", error: e, details: { sourcePath: originalLivePath } }));
+            }
+
+            rawLiveVideoName = name;
+            rawLiveVideoOriginalName = path.basename(originalLivePath);
+            if (deleteSource) fs.unlink(originalLivePath);
+        }
+    }
+
+    let validAdjustments = false;
+    if (importItem.adjustmentsPath) {
+        const adjustmentsPath = importItem.adjustmentsPath;
+
+        if (fsSync.existsSync(adjustmentsPath)) {
+            try {
+                await fs.copyFile(adjustmentsPath, path.join(adjustmentsDir, `${itemId}.aae`), fsSync.constants.COPYFILE_EXCL);
+                rollback.push(() => fs.unlink(path.join(adjustmentsDir, `${itemId}.aae`)));
+            } catch (e) {
+                rollback.revert();
+                return Result.reject(Errors.itemCopyFail({ message: "Unable to copy adjustments", error: e, details: { sourcePath: adjustmentsPath } }));
+            }
+
+            validAdjustments = true;
+            if (deleteSource) fs.unlink(adjustmentsPath);
+        }
     }
 
     if (deleteSource) fs.unlink(importItem.sourcePath);
@@ -106,6 +199,14 @@ export default async function prepareItem({ importItem, originalsDir, thumbsDir,
         isFavorite: false,
         isScreenshot: false,
         isScreenRecording: false,
+        ...(liveVideoName ? { liveVideo: liveVideoName } : {}),
+        ...(liveVideoOriginalName ? { liveVideoOriginalName } : {}),
+        ...(rawOriginalName ? { rawOriginalName } : {}),
+        ...(rawFileSize !== null ? { rawSize: rawFileSize } : {}),
+        ...(rawChecksum ? { rawChecksum } : {}),
+        ...(rawLiveVideoName ? { rawLiveVideo: rawLiveVideoName } : {}),
+        ...(rawLiveVideoOriginalName ? { rawLiveVideoOriginalName } : {}),
+        hasAdjustments: validAdjustments,
         createdAt: new Date().toISOString(),
     });
 }

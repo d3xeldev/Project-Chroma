@@ -34,7 +34,7 @@ export function withDatabase<TResult>(root: string, callback: (db: ChromaDB) => 
             if (isResult(call)) return call as WithDatabaseResult<TResult>;
             else return Result.accept(call) as WithDatabaseResult<TResult>;
         } finally {
-            db.data.close();
+            if (db.data.open) db.data.close();
         }
     } else return db as WithDatabaseResult<TResult>;
 }
@@ -48,6 +48,6 @@ export async function withDatabaseAsync<TResult>(root: string, callback: (db: Ch
         const call = await callback(db.data);
         return isResult(call) ? (call as WithDatabaseResult<TResult>) : (Result.accept(call) as WithDatabaseResult<TResult>);
     } finally {
-        db.data.close();
+        if (db.data.open) db.data.close();
     }
 }

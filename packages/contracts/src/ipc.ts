@@ -53,7 +53,7 @@ const defineCall =
 
 export const ipcDefinition = {
     windowAction: defineCall<[action: WindowAction], void>()(ipc.WINDOW_ACTION),
-    openDialog: defineCall<[options?: ChromaOpenDialogOptions], string | string[] | null>()(ipc.OPEN_DIALOG),
+    openDialog: defineCall<[options?: ChromaOpenDialogOptions], string[] | null>()(ipc.OPEN_DIALOG),
     saveDialog: defineCall<[options?: ChromaSaveDialogOptions], string | null>()(ipc.SAVE_DIALOG),
     config: {
         get: defineCall<[] | [key: keyof ChromaConfig], ChromaConfig | ChromaConfig[keyof ChromaConfig]>()(ipc.CONFIG_GET),
@@ -81,9 +81,7 @@ export const ipcDefinition = {
         groupItems: defineCall<[{ sourcePaths: string[]; checkLivePhotos: boolean; parseEdits: boolean }], ImportGroupingResult>()(ipc.ITEMS_GROUP),
         addItems: defineCall<[{ libraryId: string; items: ImportItem[]; deleteSource: boolean }], { failures: AppError[] }>()(ipc.ITEMS_ADD),
         setItemsFavorite: defineCall<[{ libraryId: string; itemIds: string[]; value: boolean }], void>()(ipc.ITEMS_SET_FAVORITE),
-        transferItems: defineCall<[{ sourceId: string; targetId: string; itemIds: string[]; doMove: boolean }], void>()(ipc.ITEMS_TRANSFER),
-        exportItems: defineCall<[{ libraryId: string; destination: string; itemIds: string[]; live: boolean; edits: boolean; adjustments: boolean }], void>()(ipc.ITEMS_EXPORT),
-        deleteItems: defineCall<[{ libraryId: string; itemIds: string[] }], void>()(ipc.ITEMS_DELETE),
+        deleteItems: defineCall<[{ libraryId: string; itemIds: string[] }], Result<void, AppError>>()(ipc.ITEMS_DELETE),
     },
     albums: {
         get: defineCall<[{ libraryId: string; parent?: string }], AlbumComp[]>()(ipc.ALBUMS_GET),
@@ -129,7 +127,7 @@ export type ChromaSaveDialogOptions = {
 };
 
 type MaybePromise<T> = Promise<T> | T;
-type MaybeResult<T> = ResultCore<T> | T;
+type MaybeResult<T> = Result<T> | T;
 type UnionToIntersection<T> = (T extends unknown ? (value: T) => void : never) extends (value: infer I) => void ? I : never;
 type IpcMapFromDefinition<T> =
     T extends IpcCall<infer TChannel, infer TArgs, infer TResult>
@@ -151,7 +149,7 @@ export type ChromaIpcRegister<TEvent> = <TChannel extends ChromaIpcChannel>(chan
 
 type BridgeFromSchema<Schema> =
     Schema extends IpcCall<string, infer TArgs, infer TResult>
-        ? (...args: TArgs) => Promise<ResultCore<TResult>>
+        ? (...args: TArgs) => Promise<Result<TResult>>
         : {
               [K in keyof Schema]: BridgeFromSchema<Schema[K]>;
           };

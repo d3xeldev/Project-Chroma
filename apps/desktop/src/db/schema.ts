@@ -27,10 +27,12 @@ export function createSchema(db: ChromaDB) {
                 isScreenshot INTEGER DEFAULT 0,
                 isScreenRecording INTEGER DEFAULT 0,
                 liveVideo TEXT,
+                liveVideoOriginalName TEXT,
                 rawOriginalName TEXT,
                 rawSize INTEGER,
                 rawChecksum TEXT,
                 rawLiveVideo TEXT,
+                rawLiveVideoOriginalName TEXT,
                 hasAdjustments INTEGER DEFAULT 0,
                 createdAt TEXT NOT NULL
             );

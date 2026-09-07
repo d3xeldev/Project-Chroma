@@ -26,9 +26,13 @@ export function useAction() {
                 }),
             ),
     });
+    const deleteItems = useMutationSafe({
+        mutationFn: (opts: Params<"chroma:items:delete">) => window.chroma!.items.deleteItems(opts),
+        onSuccess: (_, vars) => syncItems(vars.libraryId, items => items.filter(item => !vars.itemIds.includes(item.id))),
+    });
     const createAlbum = useMutationSafe({
         mutationFn: (opts: Params<"chroma:albums:create">) => window.chroma!.albums.create(opts),
-        onSuccess: (_, vars) => queryClient.invalidateQueries({ queryKey: [vars.libraryId, "albums", vars.album.parent] }),
+        onSuccess: (_, vars) => queryClient.invalidateQueries({ queryKey: queryKeys.albums(vars.libraryId, vars.album.parent) }),
     });
     const addItemsToAlbum = useMutationSafe({
         mutationFn: (opts: Params<"chroma:albums:add-items">) =>
@@ -38,8 +42,8 @@ export function useAction() {
                 itemIds: opts.itemIds,
             }),
         onSuccess: (_, vars) => {
-            queryClient.invalidateQueries({ queryKey: [vars.libraryId, "albums", vars.albumId, "items"] });
-            queryClient.invalidateQueries({ queryKey: [vars.libraryId, "albums", vars.parent] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.albumItems(vars.libraryId, vars.albumId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.albums(vars.libraryId, vars.parent) });
         },
     });
         createLibrary: (name: string, icon: string, color: string, path: string, onSuccess?: () => void) => {
@@ -102,7 +106,25 @@ export function useAction() {
             if (!selectedLibrary || !itemIds.length) return;
             return setItemsFavorite.mutateAsync({ libraryId: selectedLibrary.id, itemIds, value });
         },
-        createAlbum: (name: string, parent: string | undefined, color: string, icon: string) => {
+        deleteItems: (itemIds: string[], onSuccess?: () => unknown) => {
+            if (!selectedLibrary || !itemIds.length) return;
+            pushNoti({
+                title: "Deleting items",
+                description: `Deleting ${itemIds.length} ${itemIds.length === 1 ? "item" : "items"} from "${selectedLibrary.name}"`,
+                type: "promise",
+                promise: deleteItems.mutateAsync({ libraryId: selectedLibrary.id, itemIds }),
+                peek: "Deleting " + (itemIds.length === 1 ? "item" : "items"),
+                success: () => ({
+                    title: (itemIds.length === 1 ? "Item" : "Items") + " deleted",
+                    description: `${itemIds.length} ${itemIds.length === 1 ? "item" : "items"} have been deleted`,
+                }),
+                error: () => ({
+                    title: "Delete failed",
+                    description: "Unable to delete the selected items",
+                }),
+                onSuccess,
+            });
+        },
             if (!selectedLibrary) return;
             return createAlbum.mutateAsync({
                 libraryId: selectedLibrary.id,

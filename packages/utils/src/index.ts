@@ -1,3 +1,6 @@
+import { format } from "date-fns";
+import { defaultChromaConfig } from "@project-chroma/contracts/config";
+
 export { cn } from "cn";
 export * from "@project-chroma/core";
 export * from "./result.ts";
@@ -35,6 +38,10 @@ export function extToMime(ext: string) {
 export function uint8ToBase64(bytes: Uint8Array) {
     const binary = Array.from(bytes, byte => String.fromCharCode(byte)).join("");
     return btoa(binary);
+}
+
+export function formatDate(takenDate: string | Date, dateFormat?: string): string {
+    return format(new Date(takenDate), dateFormat?.trim() || defaultChromaConfig.settings.exportOptions.dateFormat);
 }
 
 export const appColors = [

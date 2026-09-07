@@ -64,4 +64,10 @@ export function setFavoriteState(db: ChromaDB, itemIds: readonly string[], value
     const placeholders = itemIds.map(() => "?").join(",");
     db.prepare(`UPDATE item SET isFavorite = ? WHERE id IN (${placeholders})`).run(boolToInt(value), ...itemIds);
 }
+
+export function deleteByIds(db: ChromaDB, itemIds: readonly string[]): void {
+    if (itemIds.length === 0) return;
+    const placeholders = itemIds.map(() => "?").join(",");
+    db.prepare(`DELETE FROM item WHERE id IN (${placeholders})`).run(...itemIds);
+}
 }

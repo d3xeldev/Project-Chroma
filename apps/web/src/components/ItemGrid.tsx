@@ -147,7 +147,7 @@ function GridItem({ item, selected, expanded, viewingItem, lastViewingItem, onCl
                 />
                 <button
                     className={cn(
-                        "flex absolute text-white drop-shadow-favorite transform-gpu transition-opacity z-1 *:transition-opacity",
+                        "flex absolute text-white drop-shadow-center transform-gpu transition-opacity z-1 *:transition-opacity",
                         !item.isFavorite ? "opacity-0 group-hover:opacity-100" : "",
                         !expanded ? "bottom-1 left-1" : "bottom-1.5 left-1.5",
                         !isViewing ? "*:delay-500" : "*:opacity-0",

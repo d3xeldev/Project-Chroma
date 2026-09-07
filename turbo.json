@@ -1,12 +1,12 @@
 {
     "$schema": "https://turborepo.dev/schema.json",
+    "globalDependencies": ["tsconfig.json"],
     "tasks": {
         "build": {
             "dependsOn": ["^build"],
             "outputs": ["dist/**", "dist-electron/**"]
         },
         "dev": {
-            "dependsOn": ["@project-chroma/contracts#build"],
             "cache": false,
             "persistent": true
         },

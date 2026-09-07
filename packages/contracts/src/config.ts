@@ -21,6 +21,8 @@ export interface ChromaSettings {
         livePhotos: boolean;
         edits: boolean;
         adjustments: boolean;
+        nameByTakenDate: boolean;
+        dateFormat: string;
     };
 }
 
@@ -42,6 +44,8 @@ export const defaultChromaConfig = {
             livePhotos: false,
             edits: false,
             adjustments: false,
+            nameByTakenDate: false,
+            dateFormat: "yyyy-MM-dd HH.mm.ss",
         },
     },
 } satisfies ChromaConfig;

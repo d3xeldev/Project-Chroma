@@ -7,5 +7,6 @@ export default [
     "item:missing-source",
     "item:read-fail",
     "item:copy-fail",
+    "item:delete-fail",
     "unknown",
 ] as const;

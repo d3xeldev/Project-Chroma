@@ -21,10 +21,12 @@ export interface Item {
     isScreenshot: boolean;
     isScreenRecording: boolean;
     liveVideo?: string;
+    liveVideoOriginalName?: string;
     rawOriginalName?: string;
     rawSize?: number;
     rawChecksum?: string;
     rawLiveVideo?: string;
+    rawLiveVideoOriginalName?: string;
     hasAdjustments: boolean;
     createdAt: string;
 }

@@ -25,7 +25,20 @@ async function createDirectories(root: string) {
 
 export function registerLibraryCommands(app: Electron.App, config: ConfigStore) {
     const getConfig = () => config.get();
-    const getLib = async (id: string) => (await getConfig()).libraries.find(l => l.id === id);
+    const withLibrary = async <T>(libraryId: string, callback: (library: Library) => T | Promise<T>) => {
+        const library = (await getConfig()).libraries.find(l => l.id === libraryId);
+        return library ? callback(library) : Result.reject(Errors.libraryNotFound());
+    };
+    const pathBelongsToLibrary = (candidatePath: string, libraryPath: string) => {
+        const relativePath = path.relative(path.resolve(libraryPath), path.resolve(candidatePath));
+        return relativePath === "" || (!relativePath.startsWith(".." + path.sep) && relativePath !== "..");
+    };
+    const checkLibraryPathConflict = async (candidatePath: string, excludedLibraryId?: string) => {
+        const conflict = (await getConfig()).libraries.find(library => library.id !== excludedLibraryId && pathBelongsToLibrary(candidatePath, library.path));
+        if (!conflict) return;
+
+        return Result.reject(Errors.libraryPathConflict({ details: { path: candidatePath, libraryId: conflict.id } }));
+    };
 
     // Library
 
@@ -38,6 +51,9 @@ export function registerLibraryCommands(app: Electron.App, config: ConfigStore) 
         return { ...info.data, path: rootPath };
     });
     registerHandle(ipc.LIBRARY_CREATE, async (_, { name, color, icon, path: rootPath }) => {
+        const conflicting = await checkLibraryPathConflict(rootPath);
+        if (conflicting) return conflicting;
+
         await fs.mkdir(rootPath, { recursive: true });
         const db = DB.createConnection(path.join(rootPath, "lib.db"));
 
@@ -62,6 +78,9 @@ export function registerLibraryCommands(app: Electron.App, config: ConfigStore) 
         return lib;
     });
     registerHandle(ipc.LIBRARY_ADD, async (_, { path: rootPath }) => {
+        const conflicting = await checkLibraryPathConflict(rootPath);
+        if (conflicting) return conflicting;
+
         const info = DB.withDatabase(rootPath, DB.library.fetchInfo);
         if (!info.success) return Result.reject(info.error);
 
@@ -76,138 +95,54 @@ export function registerLibraryCommands(app: Electron.App, config: ConfigStore) 
 
         return lib;
     });
-    registerHandle(
-        ipc.LIBRARY_UPDATE_PATH,
-        async (_, { libraryId, newPath }) => await config.set({ libraries: (await getConfig()).libraries.map(l => (l.id === libraryId ? { ...l, path: newPath } : l)) }),
+    registerHandle(ipc.LIBRARY_UPDATE_PATH, async (_, { libraryId, newPath }) => {
+        const conflicting = await checkLibraryPathConflict(newPath, libraryId);
+        if (conflicting) return conflicting;
+
+        return await config.set({ libraries: (await getConfig()).libraries.map(l => (l.id === libraryId ? { ...l, path: newPath } : l)) });
+    });
     );
     registerHandle(ipc.LIBRARY_REMOVE, async (_, { libraryId }) => Result.accept(await config.set({ libraries: (await getConfig()).libraries.filter(l => l.id !== libraryId) })));
 
     // Items
 
     registerHandle(ipc.ITEMS_GET, async (_, { libraryId }) => withLibrary(libraryId, lib => DB.withDatabase(lib.path, db => DB.items.getAll(db))));
-    registerHandle(ipc.ITEMS_VERIFY_CONFLICTS, async (_, { sourcePaths, checkLivePhotos, parseEdits }) => {
-        const groups = new Map<string, ConflictGroup>();
-        const getGroup = (key: string) => {
-            const group = groups.get(key);
-            if (group) return group;
-            const next: ConflictGroup = { originalItems: [], editedItems: [], originalVideos: [], editedVideos: [] };
-            groups.set(key, next);
-            return next;
-        };
-        const uneditedName = (name: string) => `IMG_${name.slice(5)}`;
-
-        for (const pathStr of sourcePaths) {
-            const sourcePath = path.parse(pathStr);
-
-            if (!sourcePath.name) continue;
-
-            const stem = sourcePath.name;
-            const ext = sourcePath.ext.slice(1).toLowerCase();
-            const mime = extToMime(ext);
-
-            if (ext === "aae") {
-                getGroup(stem).adjustments = pathStr;
-                continue;
-            }
-
-            if (mime.startsWith("image/")) {
-                if (parseEdits && stem.startsWith("IMG_E")) {
-                    getGroup(uneditedName(stem)).editedItems.push(pathStr);
-                } else {
-                    getGroup(stem).originalItems.push(pathStr);
+    registerHandle(ipc.ITEMS_GROUP, (_, { sourcePaths, checkLivePhotos, parseEdits }) => groupImportItems(sourcePaths, checkLivePhotos, parseEdits));
+    registerHandle(ipc.ITEMS_ADD, async (_, { libraryId, items, deleteSource }) =>
+        withLibrary(libraryId, lib =>
+            DB.withDatabaseAsync(lib.path, async db => {
+                let piscina: Piscina<PrepareItemProps, Result<Item, AppError>> | undefined;
+                try {
+                    piscina = new Piscina<PrepareItemProps, Result<Item, AppError>>({
+                        filename: new URL("../dist-electron/workers/prepareItem.worker.cjs", import.meta.url).href,
+                        maxThreads: cpus().length,
+                } finally {
+                    await piscina?.destroy();
                 }
-            } else if (mime.startsWith("video/")) {
-                if (parseEdits && stem.startsWith("IMG_E")) {
-                    const group = getGroup(uneditedName(stem));
-                    (checkLivePhotos ? group.editedVideos : group.editedItems).push(pathStr);
-                } else {
-                    let key = stem;
-                    if (!checkLivePhotos && !parseEdits) {
-                        key += "_V";
-                    }
-                    const group = getGroup(key);
-                    (checkLivePhotos ? group.originalVideos : group.originalItems).push(pathStr);
-                }
-            }
-        }
-
-        const itemsToImport: ImportItem[] = [];
-        const conflicts: ConflictGroup[] = [];
-
-        for (const group of groups.values()) {
-            if (group.originalItems.length > 1 || group.editedItems.length > 1 || group.originalVideos.length > 1 || group.editedVideos.length > 1) {
-                conflicts.push(group);
-                continue;
-            }
-
-            const origItem = group.originalItems[0];
-            const editItem = group.editedItems[0];
-            const origLiveVideo = group.originalVideos[0];
-            const editLiveVideo = group.editedVideos[0];
-
-            if (parseEdits && editItem) {
-                itemsToImport.push({
-                    sourcePath: editItem,
-                    livePath: editLiveVideo,
-                    originalSourcePath: origItem,
-                    originalLivePath: origLiveVideo,
-                    adjustmentsPath: group.adjustments,
-                });
-            } else if (origItem) {
-                itemsToImport.push({
-                    sourcePath: origItem,
-                    livePath: origLiveVideo,
-                    originalSourcePath: undefined,
-                    originalLivePath: undefined,
-                    adjustmentsPath: group.adjustments,
-                });
-            } else if (editLiveVideo) {
-                itemsToImport.push({
-                    sourcePath: editLiveVideo,
-                    livePath: undefined,
-                    originalSourcePath: origLiveVideo,
-                    originalLivePath: undefined,
-                    adjustmentsPath: group.adjustments,
-                });
-            } else if (origLiveVideo) {
-                itemsToImport.push({
-                    sourcePath: origLiveVideo,
-                    livePath: undefined,
-                    originalSourcePath: undefined,
-                    originalLivePath: undefined,
-                    adjustmentsPath: group.adjustments,
-                });
-            }
-        }
-
-        return {
-            itemsToImport,
-            conflicts,
-        };
-    });
-    registerHandle(ipc.ITEMS_ADD, async (_, { libraryId, items, deleteSource }) => {
-        const lib = await getLib(libraryId);
-        if (!lib) return Result.reject(Errors.libraryNotFound());
-
-        await createDirectories(lib.path);
-
-        const piscina = new Piscina<PrepareItemProps, Result<Item, AppError>>({
-            filename: new URL("../dist-electron/workers/prepareItem.worker.cjs", import.meta.url).href,
-            maxThreads: cpus().length,
-        DB.withDatabase(lib.path, db =>
-            DB.items.add(
-                db,
-                processingPool.filter(p => p.success).map(p => p.data),
-            ),
-        );
-        return { failures: processingPool.filter(p => !p.success).map(p => p.error) };
-    });
+            }),
     registerHandle(ipc.ITEMS_SET_FAVORITE, async (_, { libraryId, itemIds, value }) => {
-        const lib = await getLib(libraryId);
-        if (!lib) return Result.reject(Errors.libraryNotFound());
-
-        return DB.withDatabase(lib.path, db => DB.items.setFavoriteState(db, itemIds, value));
+        return withLibrary(libraryId, lib => DB.withDatabase(lib.path, db => DB.items.setFavoriteState(db, itemIds, value)));
     });
+    registerHandle(ipc.ITEMS_DELETE, async (_, { libraryId, itemIds }) =>
+        withLibrary(libraryId, async lib =>
+            DB.withDatabaseAsync(lib.path, async db => {
+                try {
+                    const items = DB.items.getByIds(db, itemIds);
+                    const filesToDelete = [...new Set(items.flatMap(item => storedItemFiles(lib.path, item)))];
+                    const results = await Promise.allSettled(filesToDelete.map(filePath => fs.rm(filePath, { force: true })));
+                    const failure = results.find(result => result.status === "rejected");
+                    DB.items.deleteByIds(db, itemIds);
+
+                    if (failure?.status === "rejected")
+                        return Result.reject(Errors.itemDeleteFail({ message: "Some of the files for the selected items could not be deleted", details: { reason: failure.reason } }));
+                } finally {
+                    db.close();
+                }
+
+                return Result.accept();
+            }),
+        ),
+    );
 
     // Albums
 
@@ -241,4 +176,15 @@ export function registerLibraryCommands(app: Electron.App, config: ConfigStore) 
         if (!thumb) return Result.reject(Errors.missingSource());
         return thumb;
     });
+}
+
+function storedItemFiles(root: string, item: Item): string[] {
+    return [
+        path.join(originalsDir(root), `${item.id}.${item.extension}`),
+        ...(item.liveVideo ? [path.join(originalsDir(root), item.liveVideo)] : []),
+        ...(item.rawOriginalName ? [path.join(originalsDir(root), `${item.id}-raw${path.extname(item.rawOriginalName)}`)] : []),
+        ...(item.rawLiveVideo ? [path.join(originalsDir(root), item.rawLiveVideo)] : []),
+        path.join(adjustmentsDir(root), `${item.id}.aae`),
+        path.join(thumbsDir(root), `${item.id}.webp`),
+    ];
 }

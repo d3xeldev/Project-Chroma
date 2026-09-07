@@ -5,11 +5,12 @@ export const Errors = {
     missingSource: createAppErrorRes("item:missing-source", "Source item not found"),
     itemReadFail: createAppErrorRes("item:read-fail", "Unable to read item"),
     itemCopyFail: createAppErrorRes("item:copy-fail", "Unable to copy item"),
+    itemDeleteFail: createAppErrorRes("item:delete-fail", "Unable to delete some item files"),
     unknown: (cause?: unknown) =>
         buildAppError({
             code: "unknown",
             title: "Something went wrong",
-            details: { cause },
+            message: "An unexpected error occurred",
         }),
 } as const;
 
@@ -58,8 +59,9 @@ export function isAppError(value: unknown): value is AppError {
         "code" in value &&
         typeof value.code === "string" &&
         (errorCodes as readonly string[]).includes(value.code) &&
-        "message" in value &&
-        typeof value.message === "string"
+        "title" in value &&
+        typeof value.title === "string" &&
+        (!("message" in value) || typeof value.message === "string")
     );
 }
 

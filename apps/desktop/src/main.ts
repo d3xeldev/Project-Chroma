@@ -87,6 +87,7 @@ function createWindow() {
 
     mainWindow = window;
 }
+
 const config = createConfigStore({
     app,
     fileName: "config.json",

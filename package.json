@@ -8,7 +8,6 @@
         ],
         "catalog": {
             "@tabler/icons-react": "^3.44.0",
-            "@types/bun": "^1.3.14",
             "@types/node": "^25.9.1",
             "@types/react": "^19.2.15",
             "@types/react-dom": "^19.2.3",
@@ -26,23 +25,25 @@
         "dev": "turbo run dev",
         "dev:web": "turbo run dev --filter=@project-chroma/web",
         "start": "turbo run start --filter=@project-chroma/desktop",
-        "start:web": "turbo run start --filter=@project-chroma/web",
+        "preview:web": "turbo run preview --filter=@project-chroma/web",
         "build": "turbo run build",
+        "build:all": "turbo run build bundle:binaries --filter=@project-chroma/desktop --filter=@project-chroma/web",
         "lint": "oxlint",
         "test": "turbo run test",
         "fmt": "oxfmt",
         "fmt:check": "oxfmt --check",
-        "typecheck": "turbo typecheck"
+        "package": "turbo run package --filter=@project-chroma/desktop",
+        "release": "turbo run release --filter=@project-chroma/desktop",
+        "typecheck": "turbo run typecheck"
     },
     "devDependencies": {
         "@types/node": "catalog:",
         "oxfmt": "^0.51.0",
         "oxlint": "^1.66.0",
-        "turbo": "^2.9.14",
-        "vitest": "catalog:"
+        "turbo": "^2.9.14"
     },
     "engines": {
-        "bun": "^1.3.14",
+        "bun": "^1.3.4",
         "node": "^25.9.1"
     },
     "packageManager": "bun@1.3.4"
