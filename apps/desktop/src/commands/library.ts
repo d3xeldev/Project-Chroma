@@ -1,11 +1,12 @@
 import fs from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 import { cpus } from "node:os";
 import sharp from "sharp";
 import { Piscina } from "piscina";
 import { v4 as uuidv4 } from "uuid";
 import { ipc } from "@project-chroma/contracts/ipc";
-import { Errors, extToMime, Result, type AppError } from "@project-chroma/utils";
+import { Errors, extToMime, formatDate, Result, type AppError } from "@project-chroma/utils";
 import { registerHandle } from "./ipc.ts";
 import * as utils from "./utils.ts";
 import * as DB from "../db/index.ts";

@@ -1,5 +1,6 @@
 import { Errors, Result } from "@project-chroma/utils";
-import { getLibraryVersion, SCHEMA_VERSION } from "../schema.ts";
+import { SCHEMA_VERSION } from "../migration.ts";
+import { getLibraryVersion } from "../schema.ts";
 import type { LibraryHealth, LibraryMetadata } from "@project-chroma/contracts/gallery";
 import type { ChromaDB } from "../connection.ts";
 

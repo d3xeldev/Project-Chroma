@@ -1,6 +1,5 @@
+import { SCHEMA_VERSION } from "./migration.ts";
 import type { ChromaDB } from "./connection.ts";
-
-export const SCHEMA_VERSION = 0 as const;
 
 export function createSchema(db: ChromaDB) {
     db.transaction(() => {
@@ -93,8 +92,6 @@ export function createSchema(db: ChromaDB) {
         db.pragma(`user_version = ${SCHEMA_VERSION}`);
     })();
 }
-
-const upgrades: FixedLengthArray<(db: ChromaDB) => void, typeof SCHEMA_VERSION> = [];
 
 export function getLibraryVersion(db: ChromaDB): number {
     return db.pragma("user_version", { simple: true }) as number;

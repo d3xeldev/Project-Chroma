@@ -73,7 +73,7 @@ export const ipcDefinition = {
         create: defineCall<[{ name: string; icon: string; color: string; path: string }], Library>()(ipc.LIBRARY_CREATE),
         add: defineCall<[{ path: string }], Library>()(ipc.LIBRARY_ADD),
         updatePath: defineCall<[{ libraryId: string; newPath: string }], void>()(ipc.LIBRARY_UPDATE_PATH),
-        upgrade: defineCall<[{ libraryId: string }], true>()(ipc.LIBRARY_UPGRADE),
+        upgrade: defineCall<[{ libraryId: string }], void>()(ipc.LIBRARY_UPGRADE),
         remove: defineCall<[{ libraryId: string }], void>()(ipc.LIBRARY_REMOVE),
     },
     items: {
