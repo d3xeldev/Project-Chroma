@@ -1,79 +1,61 @@
-import { errorCodes, type AppError, type ErrorCode } from "@project-chroma/core";
+import { Effect, Schema } from "effect";
 
-export const Errors = {
-    libraryNotFound: createAppErrorRes("library:not-found", "Library not found", "No library was found at the specified location."),
-    missingSource: createAppErrorRes("item:missing-source", "Source item not found"),
-    itemReadFail: createAppErrorRes("item:read-fail", "Unable to read item"),
-    itemCopyFail: createAppErrorRes("item:copy-fail", "Unable to copy item"),
-    itemDeleteFail: createAppErrorRes("item:delete-fail", "Unable to delete some item files"),
-    unknown: (cause?: unknown) =>
-        buildAppError({
-            code: "unknown",
-            title: "Something went wrong",
-            message: "An unexpected error occurred",
-        }),
-} as const;
-
-function buildAppError(args: AppError) {
-    return {
-        ...args,
-        [Symbol.toPrimitive]() {
-            const details = args.details
-                ? "\n" +
-                  Object.entries(args.details)
-                      .map(([key, value]) => `${key}: ${value}`)
-                      .join(", ")
-                : "";
-
-            return `(${args.code}) ${args.title}: ${args.message}${details}`;
-        },
-    };
-}
-
-type AppErrorResProps = {
-    title?: string;
-    message?: string;
-    error?: unknown;
-    details?: { [key: string]: unknown };
+const diagnostics = {
+    cause: Schema.optional(Schema.Unknown),
+    details: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
 };
+const defaultText = (value: string) => Schema.String.pipe(Schema.withConstructorDefault(Effect.succeed(value)));
 
-function createAppErrorRes(code: ErrorCode, title: string, message?: string) {
-    return ({ title: oTitle, message: oMessage, error, details }: AppErrorResProps = {}): AppError => {
-        const detailsObj = { ...(error instanceof Error ? errorObjToDetails(error) : {}), ...details };
+export class LibraryNotFoundError extends Schema.TaggedError<LibraryNotFoundError>()("library:not-found", {
+    ...diagnostics,
+    title: defaultText("Library not found"),
+    message: defaultText("No library was found at the specified location."),
+}) {}
 
-        return buildAppError({
-            code,
-            title: oTitle ?? title,
-            ...(oMessage ? { message: oMessage } : message ? { message } : {}),
-            details: detailsObj,
-        });
-    };
-}
+export class LibraryOutdatedError extends Schema.TaggedError<LibraryOutdatedError>()("library:outdated", {
+    ...diagnostics,
+    title: defaultText("Library outdated"),
+    message: defaultText("The selected library is outdated and must be upgraded first."),
+}) {}
 
-const errorObjToDetails = (error: Error) => ({ cause: error.cause, stack: error.stack });
+export class InvalidIpcArgumentsError extends Schema.TaggedError<InvalidIpcArgumentsError>()("ipc:invalid-arguments", {
+    ...diagnostics,
+    title: defaultText("Invalid request"),
+    message: defaultText("Invalid request"),
+}) {}
 
-export function isAppError(value: unknown): value is AppError {
-    return !!(
-        value &&
-        typeof value === "object" &&
-        "code" in value &&
-        typeof value.code === "string" &&
-        (errorCodes as readonly string[]).includes(value.code) &&
-        "title" in value &&
-        typeof value.title === "string" &&
-        (!("message" in value) || typeof value.message === "string")
-    );
-}
+export class BinaryNotFoundError extends Schema.TaggedError<BinaryNotFoundError>()("binary:not-found", {
+    ...diagnostics,
+    title: defaultText("Required binary is unavailable"),
+    message: defaultText("Required binary is unavailable"),
+}) {}
 
-export function toAppError(value: unknown): AppError {
-    if (isAppError(value)) return value;
-    if (value instanceof Error)
-        return buildAppError({
-            code: "unknown",
-            title: value.name,
-            message: value.message,
-            details: errorObjToDetails(value),
-        });
+export class MediaProcessingFailedError extends Schema.TaggedError<MediaProcessingFailedError>()("media:processing-failed", {
+    ...diagnostics,
+    title: defaultText("Unable to process media"),
+    message: defaultText("Unable to process media"),
+}) {}
 
-    return Errors.unknown(value);
+export class UnknownError extends Schema.TaggedError<UnknownError>()("unknown", {
+    ...diagnostics,
+    title: defaultText("Something went wrong"),
+    message: defaultText("An unexpected error occurred"),
+}) {}
+
+export const ChromaError = Schema.Union([
+    LibraryNotFoundError,
+    LibraryOutdatedError,
+    InvalidIpcArgumentsError,
+    BinaryNotFoundError,
+    MediaProcessingFailedError,
+    UnknownError,
+]);
+
+export type ChromaError = typeof ChromaError.Type;
+export type IpcResponse<A> = { readonly _tag: "Success"; readonly value: A } | { readonly _tag: "Failure"; readonly error: typeof ChromaError.Encoded };
+
+export const isChromaError = Schema.is(ChromaError);
+export function toChromaError(value: unknown): ChromaError {
+    if (isChromaError(value)) return value;
+    return new UnknownError({ cause: value, ...(value instanceof Error ? { message: value.message } : {}) });
 }

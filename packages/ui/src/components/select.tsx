@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 
-import { cn } from "@project-chroma/utils";
+import { cn } from "cn";
 import { IconSelector, IconCheck, IconChevronUp, IconChevronDown } from "@tabler/icons-react";
 
 const Select = SelectPrimitive.Root;

@@ -4,20 +4,19 @@
     "private": true,
     "type": "module",
     "exports": {
-        ".": "./src/index.ts"
+        ".": "./src/index.ts",
+        "./errors": "./src/errors.ts"
     },
     "scripts": {
         "test": "vitest run",
-        "test:watch": "vitest",
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "@project-chroma/core": "workspace:*",
-        "cn": "^0.2.4",
-        "date-fns": "^4.4.0"
+        "@project-chroma/contracts": "workspace:*",
+        "date-fns": "^4.4.0",
+        "effect": "catalog:"
     },
     "devDependencies": {
-        "@project-chroma/contracts": "workspace:*",
         "@types/node": "catalog:",
         "typescript": "catalog:",
         "vitest": "catalog:"

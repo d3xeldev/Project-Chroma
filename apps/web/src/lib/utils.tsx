@@ -1,10 +1,6 @@
 import type { Item } from "@project-chroma/contracts/gallery";
 export function isValidColor(color: string) {
-    document.head.style.color = color;
-    const isValid = document.head.style.color;
-    document.head.removeAttribute("style");
-
-    return !!isValid;
+    return CSS.supports("color", color);
 }
 
 export const pathToName = (p: string) => /[^\\/]+(?=[/|\\]?$)/g.exec(p)?.[0] || "";

@@ -1,53 +1,48 @@
-import fs from "node:fs";
 import path from "node:path";
+import { Effect } from "effect";
 import Database from "better-sqlite3";
-import { Errors, isResult, Result } from "@project-chroma/utils";
+import { attempt } from "@project-chroma/utils";
+import { LibraryNotFoundError, toChromaError, type ChromaError } from "@project-chroma/utils/errors";
+import { exists } from "../lib/effects/fileSystem.ts";
 
 export type ChromaDB = Database.Database;
 
 export function createConnection(dbPath: string): ChromaDB {
     const db = new Database(dbPath);
-    db.pragma("foreign_keys = ON");
-    db.pragma("busy_timeout = 2000");
-    db.pragma("journal_mode = WAL");
-    return db;
-}
-
-export function openConnection(root: string): Result<ChromaDB> {
-    const dbPath = path.join(root, "lib.db");
-    if (!fs.existsSync(dbPath)) {
-        return Result.reject(Errors.libraryNotFound());
-    }
-
-    return Result.accept(createConnection(dbPath));
-}
-
-type WithDatabaseResult<T> = T extends Result<any> ? T : Result<T>;
-
-export function withDatabase<TResult>(root: string, callback: (db: ChromaDB) => TResult): WithDatabaseResult<TResult> {
-    const db = openConnection(root);
-
-    if (db.success) {
-        try {
-            const call = callback(db.data);
-
-            if (isResult(call)) return call as WithDatabaseResult<TResult>;
-            else return Result.accept(call) as WithDatabaseResult<TResult>;
-        } finally {
-            if (db.data.open) db.data.close();
-        }
-    } else return db as WithDatabaseResult<TResult>;
-}
-
-export async function withDatabaseAsync<TResult>(root: string, callback: (db: ChromaDB) => Promise<TResult>): Promise<WithDatabaseResult<TResult>> {
-    const db = openConnection(root);
-
-    if (!db.success) return db as WithDatabaseResult<TResult>;
-
     try {
-        const call = await callback(db.data);
-        return isResult(call) ? (call as WithDatabaseResult<TResult>) : (Result.accept(call) as WithDatabaseResult<TResult>);
-    } finally {
-        if (db.data.open) db.data.close();
+        db.pragma("foreign_keys = ON");
+        db.pragma("busy_timeout = 2000");
+        db.pragma("journal_mode = WAL");
+        return db;
+    } catch (error) {
+        db.close();
+        throw error;
     }
+}
+
+export function openConnection(root: string): Effect.Effect<ChromaDB, ChromaError> {
+    return Effect.gen(function* () {
+        const dbPath = path.join(root, "lib.db");
+
+        if (!(yield* exists(dbPath))) {
+            return yield* Effect.fail(new LibraryNotFoundError());
+        }
+
+        return yield* attempt(() => createConnection(dbPath));
+    });
+}
+
+const closeConnection = (db: ChromaDB) =>
+    Effect.sync(() => {
+        if (db.open) db.close();
+    });
+
+export function withDatabase<A, E = never>(root: string, callback: (db: ChromaDB) => A | Effect.Effect<A, E>): Effect.Effect<A, E | ChromaError> {
+    return Effect.scoped(
+        Effect.gen(function* () {
+            const db = yield* database(root);
+            const value = yield* attempt(() => callback(db));
+            return Effect.isEffect(value) ? yield* value : value;
+        }),
+    );
 }

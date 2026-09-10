@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@project-chroma/utils";
+import { cn } from "cn";
 import { Label } from "./label";
 import { Separator } from "./separator";
 

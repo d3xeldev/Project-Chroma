@@ -1,6 +1,36 @@
-import type { AppError, ResultCore } from "@project-chroma/core";
+import type { Effect } from "effect";
 import type { ChromaConfig } from "./config.ts";
-import type { Album, AlbumComp, ImportCandidate, ImportItem, Item, ItemAlbumRef, Library, LibraryHealth, LibraryMetadataPath, Tag, TagItemRef } from "./gallery.ts";
+import type {
+    Album,
+    AlbumComp,
+    ImportGroupingResult,
+    ImportItem,
+    Item,
+    ItemAlbumRef,
+    Library,
+    LibraryHealth,
+    LibraryMetadataPath,
+    Tag,
+    TagItemsRef,
+} from "./gallery.ts";
+
+export type WindowAction = "minimize" | "toggleMaximize" | "close";
+
+export type ChromaOpenDialogOptions = {
+    directory?: boolean;
+    multiple?: boolean;
+    filters?: ChromaFileFilter[];
+};
+
+export type ChromaFileFilter = {
+    name: string;
+    extensions: string[];
+};
+
+export type ChromaSaveDialogOptions = {
+    defaultPath?: string;
+    canCreateDirectories?: boolean;
+};
 
 export const ipc = {
     WINDOW_ACTION: "chroma:window-action",
@@ -32,127 +62,128 @@ export const ipc = {
     TAGS_CREATE: "chroma:tags:create",
     TAGS_UPDATE: "chroma:tags:update",
     TAGS_DELETE: "chroma:tags:delete",
-    TAGS_GET_ITEM: "chroma:tags:get-item",
-    TAGS_ADD_TO_ITEMS: "chroma:tags:add-to-items",
-    TAGS_REMOVE_FROM_ITEMS: "chroma:tags:remove-from-items",
+    TAGS_GET_ITEMS: "chroma:tags:get-items",
+    TAGS_SET_ON_ITEMS: "chroma:tags:set-on-items",
     SEARCH_GET_STATUS: "chroma:search:get-status",
     SEARCH_ENABLE: "chroma:search:enable",
     SEARCH_ITEMS: "chroma:search:items",
     GEN_QUICK_THUMB: "chroma:gen-quick-thumb",
 } as const;
 
-type IpcCall<TChannel extends string, TArgs extends unknown[], TResult> = {
-    readonly channel: TChannel;
-    readonly args?: TArgs;
-    readonly result?: TResult;
+export type ChromaIpcMap = {
+    [ipc.WINDOW_ACTION]: (action: WindowAction) => void;
+    [ipc.OPEN_DIALOG]: (options?: ChromaOpenDialogOptions) => string[] | null;
+    [ipc.SAVE_DIALOG]: (options?: ChromaSaveDialogOptions) => string | null;
+    [ipc.CONFIG_GET]: (key?: keyof ChromaConfig) => ChromaConfig | ChromaConfig[keyof ChromaConfig];
+    [ipc.CONFIG_SET]: (partial: Partial<ChromaConfig>) => void;
+    [ipc.CONFIG_UPDATE]: (config: ChromaConfig) => void;
+    [ipc.UPDATE_GET_STATE]: () => UpdateState;
+    [ipc.UPDATE_CHECK]: () => UpdateState;
+    [ipc.UPDATE_DOWNLOAD]: () => UpdateState;
+    [ipc.UPDATE_INSTALL]: () => UpdateState;
+    [ipc.LIBRARY_GET]: () => Library[];
+    [ipc.LIBRARY_CHECK_HEALTH]: (options: { libraryId: string }) => LibraryHealth;
+    [ipc.LIBRARY_GET_INFO_FROM_PATH]: (options: { path: string }) => LibraryMetadataPath;
+    [ipc.LIBRARY_CREATE]: (options: { name: string; icon: string; color: string; path: string }) => Library;
+    [ipc.LIBRARY_ADD]: (options: { path: string }) => Library;
+    [ipc.LIBRARY_UPDATE_PATH]: (options: { libraryId: string; newPath: string }) => void;
+    [ipc.LIBRARY_UPGRADE]: (options: { libraryId: string }) => void;
+    [ipc.LIBRARY_REMOVE]: (options: { libraryId: string }) => void;
+    [ipc.ITEMS_GET]: (options: { libraryId: string }) => Item[];
+    [ipc.ITEMS_GROUP]: (options: { sourcePaths: string[]; checkLivePhotos: boolean; parseEdits: boolean }) => ImportGroupingResult;
+    [ipc.ITEMS_ADD]: (options: { libraryId: string; items: ImportItem[]; deleteSource: boolean }) => { failures: (typeof ChromaError.Encoded)[] };
+    [ipc.ITEMS_SET_FAVORITE]: (options: { libraryId: string; itemIds: string[]; value: boolean }) => void;
+    [ipc.ITEMS_TRANSFER]: (options: { sourceId: string; targetId: string; itemIds: string[]; doMove: boolean }) => ItemFileOperationSummary;
+    [ipc.ITEMS_EXPORT]: (options: {
+        libraryId: string;
+        destination: string;
+        itemIds: string[];
+        live: boolean;
+        edits: boolean;
+        adjustments: boolean;
+        nameByTakenDate?: boolean;
+        dateFormat?: string;
+    }) => ItemFileOperationSummary;
+    [ipc.ITEMS_DELETE]: (options: { libraryId: string; itemIds: string[] }) => void;
+    [ipc.ALBUMS_GET]: (options: { libraryId: string; parent?: string }) => AlbumComp[];
+    [ipc.ALBUMS_CREATE]: (options: { libraryId: string; album: Omit<Album, "id"> }) => void;
+    [ipc.ALBUMS_GET_ITEMS]: (options: { libraryId: string; albumId: string }) => ItemAlbumRef[];
+    [ipc.ALBUMS_ADD_ITEMS]: (options: { libraryId: string; albumId: string; itemIds: string[]; parent?: string }) => void;
+    [ipc.TAGS_GET]: (options: { libraryId: string }) => Tag[];
+    [ipc.TAGS_CREATE]: (options: { libraryId: string; name: string; color: string }) => Tag;
+    [ipc.TAGS_UPDATE]: (options: { libraryId: string; tagId: string; name?: string; color?: string }) => Tag;
+    [ipc.TAGS_DELETE]: (options: { libraryId: string; tagIds: string[] }) => void;
+    [ipc.TAGS_GET_ITEMS]: (options: { libraryId: string; itemIds: string[] }) => TagItemsRef[];
+    [ipc.TAGS_SET_ON_ITEMS]: (options: { libraryId: string; itemIds: string[]; tagIds: string[]; assigned: boolean }) => void;
+    [ipc.SEARCH_GET_STATUS]: (options: { libraryId: string }) => ItemSearchStatus;
+    [ipc.SEARCH_ENABLE]: (options: { libraryId: string }) => ItemSearchStatus;
+    [ipc.SEARCH_ITEMS]: (options: { libraryId: string; query: string; limit: number; minScore?: number }) => ItemSearchMatch[];
+    [ipc.GEN_QUICK_THUMB]: (options: { path: string }) => Uint8Array | undefined;
 };
 
-const defineCall =
-    <TArgs extends unknown[], TResult>() =>
-    <const TChannel extends string>(channel: TChannel): IpcCall<TChannel, TArgs, TResult> => ({ channel });
-
-export const ipcDefinition = {
-    windowAction: defineCall<[action: WindowAction], void>()(ipc.WINDOW_ACTION),
-    openDialog: defineCall<[options?: ChromaOpenDialogOptions], string[] | null>()(ipc.OPEN_DIALOG),
-    saveDialog: defineCall<[options?: ChromaSaveDialogOptions], string | null>()(ipc.SAVE_DIALOG),
-    config: {
-        get: defineCall<[] | [key: keyof ChromaConfig], ChromaConfig | ChromaConfig[keyof ChromaConfig]>()(ipc.CONFIG_GET),
-        set: defineCall<[partial: Partial<ChromaConfig>], void>()(ipc.CONFIG_SET),
-        update: defineCall<[config: ChromaConfig], void>()(ipc.CONFIG_UPDATE),
-    },
-    updates: {
-        getState: defineCall<[], UpdateState>()(ipc.UPDATE_GET_STATE),
-        check: defineCall<[], UpdateState>()(ipc.UPDATE_CHECK),
-        download: defineCall<[], UpdateState>()(ipc.UPDATE_DOWNLOAD),
-        install: defineCall<[], UpdateState>()(ipc.UPDATE_INSTALL),
-    },
-    library: {
-        get: defineCall<[], Library[]>()(ipc.LIBRARY_GET),
-        checkHealth: defineCall<[{ libraryId: string }], LibraryHealth>()(ipc.LIBRARY_CHECK_HEALTH),
-        getInfoFromPath: defineCall<[{ path: string }], LibraryMetadataPath>()(ipc.LIBRARY_GET_INFO_FROM_PATH),
-        create: defineCall<[{ name: string; icon: string; color: string; path: string }], Library>()(ipc.LIBRARY_CREATE),
-        add: defineCall<[{ path: string }], Library>()(ipc.LIBRARY_ADD),
-        updatePath: defineCall<[{ libraryId: string; newPath: string }], void>()(ipc.LIBRARY_UPDATE_PATH),
-        upgrade: defineCall<[{ libraryId: string }], void>()(ipc.LIBRARY_UPGRADE),
-        remove: defineCall<[{ libraryId: string }], void>()(ipc.LIBRARY_REMOVE),
-    },
-    items: {
-        get: defineCall<[{ libraryId: string }], Item[]>()(ipc.ITEMS_GET),
-        groupItems: defineCall<[{ sourcePaths: string[]; checkLivePhotos: boolean; parseEdits: boolean }], ImportGroupingResult>()(ipc.ITEMS_GROUP),
-        addItems: defineCall<[{ libraryId: string; items: ImportItem[]; deleteSource: boolean }], { failures: AppError[] }>()(ipc.ITEMS_ADD),
-        setItemsFavorite: defineCall<[{ libraryId: string; itemIds: string[]; value: boolean }], void>()(ipc.ITEMS_SET_FAVORITE),
-        deleteItems: defineCall<[{ libraryId: string; itemIds: string[] }], Result<void, AppError>>()(ipc.ITEMS_DELETE),
-    },
-    albums: {
-        get: defineCall<[{ libraryId: string; parent?: string }], AlbumComp[]>()(ipc.ALBUMS_GET),
-        create: defineCall<[{ libraryId: string; album: Omit<Album, "id"> }], void>()(ipc.ALBUMS_CREATE),
-        getItems: defineCall<[{ libraryId: string; albumId: string }], ItemAlbumRef[]>()(ipc.ALBUMS_GET_ITEMS),
-        addItems: defineCall<[{ libraryId: string; albumId: string; itemIds: string[]; parent?: string }], void>()(ipc.ALBUMS_ADD_ITEMS),
-    },
-    tags: {
-        get: defineCall<[{ libraryId: string }], Tag[]>()(ipc.TAGS_GET),
-        create: defineCall<[{ libraryId: string; name: string; color: string }], Tag>()(ipc.TAGS_CREATE),
-        update: defineCall<[{ libraryId: string; tagId: string; name?: string; color?: string }], Tag | undefined>()(ipc.TAGS_UPDATE),
-        delete: defineCall<[{ libraryId: string; tagIds: string[] }], void>()(ipc.TAGS_DELETE),
-        getItem: defineCall<[{ libraryId: string; itemId: string }], TagItemRef[]>()(ipc.TAGS_GET_ITEM),
-        addToItems: defineCall<[{ libraryId: string; itemIds: string[]; tagIds: string[] }], void>()(ipc.TAGS_ADD_TO_ITEMS),
-        removeFromItems: defineCall<[{ libraryId: string; itemIds: string[]; tagIds: string[] }], void>()(ipc.TAGS_REMOVE_FROM_ITEMS),
-    },
-    search: {
-        getStatus: defineCall<[{ libraryId: string }], ItemSearchStatus>()(ipc.SEARCH_GET_STATUS),
-        enable: defineCall<[{ libraryId: string }], ItemSearchStatus>()(ipc.SEARCH_ENABLE),
-        items: defineCall<[{ libraryId: string; query: string; limit: number; minScore?: number }], ItemSearchMatch[]>()(ipc.SEARCH_ITEMS),
-    },
-    other: {
-        genQuickThumb: defineCall<[{ path: string }], Uint8Array | undefined>()(ipc.GEN_QUICK_THUMB),
-    },
-} as const;
-
-export type WindowAction = "minimize" | "toggleMaximize" | "close";
-
-export type ChromaOpenDialogOptions = {
-    directory?: boolean;
-    multiple?: boolean;
-    filters?: ChromaFileFilter[];
-};
-
-export type ChromaFileFilter = {
-    name: string;
-    extensions: string[];
-};
-
-export type ChromaSaveDialogOptions = {
-    defaultPath?: string;
-    canCreateDirectories?: boolean;
-};
-
-type MaybePromise<T> = Promise<T> | T;
-type MaybeResult<T> = Result<T> | T;
-type UnionToIntersection<T> = (T extends unknown ? (value: T) => void : never) extends (value: infer I) => void ? I : never;
-type IpcMapFromDefinition<T> =
-    T extends IpcCall<infer TChannel, infer TArgs, infer TResult>
-        ? { [K in TChannel]: (...args: TArgs) => TResult }
-        : T extends object
-          ? UnionToIntersection<{ [K in keyof T]: IpcMapFromDefinition<T[K]> }[keyof T]>
-          : never;
-
-export type ChromaIpcMap = IpcMapFromDefinition<typeof ipcDefinition>;
 export type ChromaIpcChannel = keyof ChromaIpcMap;
-
 export type ChromaIpcArgs<TChannel extends ChromaIpcChannel> = Parameters<ChromaIpcMap[TChannel]>;
-
-type ChromaIpcResult<TChannel extends ChromaIpcChannel> = ReturnType<ChromaIpcMap[TChannel]>;
-
-export type ChromaIpcHandler<TEvent, TChannel extends ChromaIpcChannel> = (event: TEvent, ...args: ChromaIpcArgs<TChannel>) => MaybePromise<MaybeResult<ChromaIpcResult<TChannel>>>;
-
+export type ChromaIpcResult<TChannel extends ChromaIpcChannel> = ReturnType<ChromaIpcMap[TChannel]>;
+export type ChromaIpcHandler<TEvent, TChannel extends ChromaIpcChannel> = (event: TEvent, ...args: ChromaIpcArgs<TChannel>) => Effect.Effect<ChromaIpcResult<TChannel>, ChromaError>;
 export type ChromaIpcRegister<TEvent> = <TChannel extends ChromaIpcChannel>(channel: TChannel, listener: ChromaIpcHandler<TEvent, TChannel>) => void;
 
-type BridgeFromSchema<Schema> =
-    Schema extends IpcCall<string, infer TArgs, infer TResult>
-        ? (...args: TArgs) => Promise<Result<TResult>>
-        : {
-              [K in keyof Schema]: BridgeFromSchema<Schema[K]>;
-          };
+type ChromaApiDefinition = {
+    windowAction: typeof ipc.WINDOW_ACTION;
+    openDialog: typeof ipc.OPEN_DIALOG;
+    saveDialog: typeof ipc.SAVE_DIALOG;
+    config: {
+        get: typeof ipc.CONFIG_GET;
+        set: typeof ipc.CONFIG_SET;
+        update: typeof ipc.CONFIG_UPDATE;
+    };
+    updates: {
+        getState: typeof ipc.UPDATE_GET_STATE;
+        check: typeof ipc.UPDATE_CHECK;
+        download: typeof ipc.UPDATE_DOWNLOAD;
+        install: typeof ipc.UPDATE_INSTALL;
+    };
+    library: {
+        get: typeof ipc.LIBRARY_GET;
+        checkHealth: typeof ipc.LIBRARY_CHECK_HEALTH;
+        getInfoFromPath: typeof ipc.LIBRARY_GET_INFO_FROM_PATH;
+        create: typeof ipc.LIBRARY_CREATE;
+        add: typeof ipc.LIBRARY_ADD;
+        updatePath: typeof ipc.LIBRARY_UPDATE_PATH;
+        upgrade: typeof ipc.LIBRARY_UPGRADE;
+        remove: typeof ipc.LIBRARY_REMOVE;
+    };
+    items: {
+        get: typeof ipc.ITEMS_GET;
+        groupItems: typeof ipc.ITEMS_GROUP;
+        addItems: typeof ipc.ITEMS_ADD;
+        setItemsFavorite: typeof ipc.ITEMS_SET_FAVORITE;
+        transferItems: typeof ipc.ITEMS_TRANSFER;
+        exportItems: typeof ipc.ITEMS_EXPORT;
+        deleteItems: typeof ipc.ITEMS_DELETE;
+    };
+    albums: {
+        get: typeof ipc.ALBUMS_GET;
+        create: typeof ipc.ALBUMS_CREATE;
+        getItems: typeof ipc.ALBUMS_GET_ITEMS;
+        addItems: typeof ipc.ALBUMS_ADD_ITEMS;
+    };
+    tags: {
+        get: typeof ipc.TAGS_GET;
+        create: typeof ipc.TAGS_CREATE;
+        update: typeof ipc.TAGS_UPDATE;
+        delete: typeof ipc.TAGS_DELETE;
+        getItems: typeof ipc.TAGS_GET_ITEMS;
+        setOnItems: typeof ipc.TAGS_SET_ON_ITEMS;
+    };
+    search: {
+        getStatus: typeof ipc.SEARCH_GET_STATUS;
+        enable: typeof ipc.SEARCH_ENABLE;
+        items: typeof ipc.SEARCH_ITEMS;
+    };
+    other: {
+        genQuickThumb: typeof ipc.GEN_QUICK_THUMB;
+    };
+};
 
 type DerivedChromaBridge = BridgeFromSchema<typeof ipcDefinition>;
 

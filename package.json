@@ -1,50 +1,31 @@
 {
     "name": "project-chroma",
     "private": true,
-    "workspaces": {
-        "packages": [
-            "apps/*",
-            "packages/*"
-        ],
-        "catalog": {
-            "@tabler/icons-react": "^3.44.0",
-            "@types/node": "^25.9.1",
-            "@types/react": "^19.2.15",
-            "@types/react-dom": "^19.2.3",
-            "react": "^19.2.6",
-            "react-dom": "^19.2.6",
-            "sonner": "^2.0.7",
-            "tailwindcss": "^4.3.0",
-            "tw-animate-css": "^1.4.0",
-            "typescript": "^6.0.3",
-            "vitest": "^4.1.7"
-        }
-    },
     "type": "module",
     "scripts": {
-        "dev": "turbo run dev",
-        "dev:web": "turbo run dev --filter=@project-chroma/web",
-        "start": "turbo run start --filter=@project-chroma/desktop",
-        "preview:web": "turbo run preview --filter=@project-chroma/web",
-        "build": "turbo run build",
-        "build:all": "turbo run build bundle:binaries --filter=@project-chroma/desktop --filter=@project-chroma/web",
-        "lint": "oxlint",
-        "test": "turbo run test",
-        "fmt": "oxfmt",
-        "fmt:check": "oxfmt --check",
-        "package": "turbo run package --filter=@project-chroma/desktop",
-        "release": "turbo run release --filter=@project-chroma/desktop",
-        "typecheck": "turbo run typecheck"
+        "dev": "node scripts/runner.ts dev",
+        "dev:desktop": "node scripts/runner.ts dev:desktop",
+        "dev:web": "node scripts/runner.ts dev:web",
+        "build": "pnpm -r --if-present --filter './apps/*' --filter './packages/*' build",
+        "build:desktop": "pnpm --filter @project-chroma/desktop build && pnpm --filter @project-chroma/web build",
+        "typecheck": "pnpm -r --if-present --workspace-concurrency=2",
+        "check": "pnpm typecheck && pnpm lint && pnpm format:check",
+        "test": "pnpm -r --if-present test",
+        "lint": "oxlint --disable-nested-config --report-unused-disable-directives",
+        "lint:fix": "oxlint --fix --disable-nested-config --report-unused-disable-directives",
+        "format": "oxfmt",
+        "format:check": "oxfmt --check",
+        "dist:desktop": "node scripts/build-artifact.ts",
+        "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist apps/*/dist-electron packages/*/dist"
     },
     "devDependencies": {
         "@types/node": "catalog:",
-        "oxfmt": "^0.51.0",
-        "oxlint": "^1.66.0",
-        "turbo": "^2.9.14"
+        "oxfmt": "catalog:",
+        "oxlint": "catalog:",
+        "typescript": "catalog:"
     },
     "engines": {
-        "bun": "^1.3.4",
-        "node": "^25.9.1"
+        "node": "^24"
     },
-    "packageManager": "bun@1.3.4"
+    "packageManager": "pnpm@12.3.4"
 }

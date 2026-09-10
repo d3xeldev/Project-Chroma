@@ -31,7 +31,8 @@ function getRendererUrl(): string {
         return process.env.ELECTRON_START_URL ?? "http://localhost:5173";
     }
 
-    return `file://${path.join(__dirname, "../../web/dist/index.html")}`;
+    const rendererPath = app.isPackaged ? path.join(process.resourcesPath, "web/index.html") : path.join(__dirname, "../../web/dist/index.html");
+    return `file://${rendererPath}`;
 }
 
 function revealWindow(window: BrowserWindow): void {
@@ -100,6 +101,7 @@ app.whenReady()
             app,
             config,
             getWindow: () => mainWindow,
+            autoUpdates,
         });
             getWindow: () => mainWindow,
         createWindow();

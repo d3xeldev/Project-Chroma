@@ -1,6 +1,6 @@
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 
-import { cn } from "@project-chroma/utils";
+import { cn } from "cn";
 
 type ProgressProps = Omit<ProgressPrimitive.Root.Props, "value"> & {
     indeterminate?: boolean;
@@ -26,7 +26,10 @@ function ProgressIndicator({ className, ...props }: ProgressPrimitive.Indicator.
     return (
         <ProgressPrimitive.Indicator
             data-slot="progress-indicator"
-            className={cn("h-full bg-primary transition-all data-indeterminate:absolute data-indeterminate:w-1/3 data-indeterminate:animate-[progress-indeterminate_1.2s_ease-in-out_infinite] motion-reduce:data-indeterminate:animate-pulse", className)}
+            className={cn(
+                "h-full bg-primary transition-all data-indeterminate:absolute data-indeterminate:w-1/3 data-indeterminate:animate-[progress-indeterminate_1.2s_ease-in-out_infinite] motion-reduce:data-indeterminate:animate-pulse",
+                className,
+            )}
             {...props}
         />
     );

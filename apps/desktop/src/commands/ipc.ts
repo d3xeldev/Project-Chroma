@@ -1,9 +1,14 @@
 import { BrowserWindow, dialog, ipcMain } from "electron";
+import { Effect, Schema } from "effect";
 import { ipc } from "@project-chroma/contracts/ipc";
-import { safeBound, toResult } from "@project-chroma/utils";
+import { attempt, attemptPromise, encodeResponse } from "@project-chroma/utils";
+import { InvalidIpcArgumentsError } from "@project-chroma/utils/errors";
 import { registerConfigCommands } from "./config.ts";
 import { registerLibraryCommands } from "./library.ts";
+import { registerUpdaterCommands } from "./updater.ts";
 import type { ChromaIpcArgs, ChromaIpcChannel, ChromaIpcHandler, ChromaIpcRegister } from "@project-chroma/contracts/ipc";
+import type { ConfigStore } from "../lib/config.ts";
+
 type RegisterIpcHandlersOptions = {
     app: Electron.App;
     config: ConfigStore;
@@ -17,11 +22,16 @@ function removeKnownHandlers() {
     }
 }
 
-export const registerHandle = (<TChannel extends ChromaIpcChannel, const TArgs extends ChromaIpcArgs<TChannel>>(
-    channel: TChannel,
-    listener: ChromaIpcHandler<Electron.IpcMainInvokeEvent, TChannel, TArgs>,
-) => {
-    ipcMain.handle(channel, (event, ...args) => safeBound(async () => toResult(await listener(event, ...(args as TArgs)))));
+export const registerHandler = (<TChannel extends ChromaIpcChannel>(channel: TChannel, listener: ChromaIpcHandler<Electron.IpcMainInvokeEvent, TChannel>) => {
+    ipcMain.handle(channel, (event, ...args) =>
+        encodeResponse(
+            Schema.decodeUnknownEffect(ipcArgumentSchemas[channel] as Schema.ConstraintDecoder<unknown>)(args).pipe(
+                Effect.mapError(error => new InvalidIpcArgumentsError({ message: `Invalid arguments for ${channel}`, details: { channel, issue: String(error) } })),
+                Effect.flatMap(decoded => Effect.suspend(() => listener(event, ...(decoded as ChromaIpcArgs<TChannel>)))),
+                Effect.withSpan(channel),
+            ),
+        ),
+    );
 }) satisfies ChromaIpcRegister<Electron.IpcMainInvokeEvent>;
 
 function getDialogOwner(getWindow: () => BrowserWindow | null): BrowserWindow | undefined {
@@ -31,43 +41,50 @@ function getDialogOwner(getWindow: () => BrowserWindow | null): BrowserWindow | 
 export function registerIpcHandlers({ app, config, getWindow, autoUpdates }: RegisterIpcHandlersOptions) {
     removeKnownHandlers();
 
-    registerHandle(ipc.WINDOW_ACTION, async (_, action: WindowAction) => {
-        const window = getWindow();
-        if (!window) return;
+    registerHandler(ipc.WINDOW_ACTION, (_, action) =>
+        attempt(() => {
+            const window = getWindow();
+            if (!window) return;
 
-        if (action === "minimize") window.minimize();
-        if (action === "toggleMaximize") {
-            if (window.isMaximized()) window.unmaximize();
-            else window.maximize();
-        }
-        if (action === "close") window.close();
-    });
+            if (action === "minimize") window.minimize();
+            if (action === "toggleMaximize") {
+                if (window.isMaximized()) window.unmaximize();
+                else window.maximize();
+            }
+            if (action === "close") window.close();
+        }),
+    );
 
-    registerHandle(ipc.OPEN_DIALOG, async (_, options = {}) => {
-        const dialogOptions = {
-            properties: [options.directory ? "openDirectory" : "openFile", ...(options.multiple ? (["multiSelections"] as const) : []), "createDirectory"],
-            ...(options.filters ? { filters: options.filters } : {}),
-        } satisfies Electron.OpenDialogOptions;
+    registerHandler(ipc.OPEN_DIALOG, (_, options = {}) =>
+        Effect.gen(function* () {
+            const dialogOptions = {
+                properties: [options.directory ? "openDirectory" : "openFile", ...(options.multiple ? (["multiSelections"] as const) : []), "createDirectory"],
+                ...(options.filters ? { filters: options.filters } : {}),
+            } satisfies Electron.OpenDialogOptions;
 
-        const owner = getDialogOwner(getWindow);
-        const result = owner ? await dialog.showOpenDialog(owner, dialogOptions) : await dialog.showOpenDialog(dialogOptions);
+            const owner = yield* attempt(() => getDialogOwner(getWindow));
+            const result = yield* attemptPromise(() => (owner ? dialog.showOpenDialog(owner, dialogOptions) : dialog.showOpenDialog(dialogOptions)));
 
-        if (result.canceled) return null;
-        return result.filePaths;
-    });
+            if (result.canceled) return null;
+            return result.filePaths;
+        }),
+    );
 
-    registerHandle(ipc.SAVE_DIALOG, async (_, options = {}) => {
-        const dialogOptions = {
-            ...(options.defaultPath ? { defaultPath: options.defaultPath } : {}),
-            properties: ["createDirectory"],
-        } satisfies Electron.SaveDialogOptions;
+    registerHandler(ipc.SAVE_DIALOG, (_, options = {}) =>
+        Effect.gen(function* () {
+            const dialogOptions = {
+                ...(options.defaultPath ? { defaultPath: options.defaultPath } : {}),
+                properties: ["createDirectory"],
+            } satisfies Electron.SaveDialogOptions;
 
-        const owner = getDialogOwner(getWindow);
-        const result = owner ? await dialog.showSaveDialog(owner, dialogOptions) : await dialog.showSaveDialog(dialogOptions);
+            const owner = yield* attempt(() => getDialogOwner(getWindow));
+            const result = yield* attemptPromise(() => (owner ? dialog.showSaveDialog(owner, dialogOptions) : dialog.showSaveDialog(dialogOptions)));
 
-        return result.canceled ? null : (result.filePath ?? null);
-    });
+            return result.canceled ? null : (result.filePath ?? null);
+        }),
+    );
 
     registerConfigCommands(config);
     registerLibraryCommands(app, config);
+    registerUpdaterCommands(autoUpdates);
 }

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
 
-import { cn } from "@project-chroma/utils";
+import { cn } from "cn";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog";
 import { InputGroup, InputGroupAddon } from "./input-group";
 import { IconSearch, IconCheck } from "@tabler/icons-react";

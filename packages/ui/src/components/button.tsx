@@ -1,7 +1,7 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@project-chroma/utils";
+import { cn } from "cn";
 
 const buttonVariants = cva(
     "group/button isolate inline-flex shrink-0 relative items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all shadow-lg shadow-transparent inset-shadow-center inset-shadow-white overflow-hidden outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 before:pointer-events-none before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:from-10% before:to-60% after:absolute after:rounded-md after:inset-px after:inset-ring-2 after:inset-ring-transparent after:opacity-75 hover:after:opacity-100 after:transition-opacity aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",

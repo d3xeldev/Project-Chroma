@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { ipc, ipcDefinition } from "@project-chroma/contracts/ipc";
-import type { ChromaBridge, ChromaEventChannel, ChromaEventListener, ChromaIpcChannel } from "@project-chroma/contracts/ipc";
+import type { ChromaTransport, ChromaEventChannel, ChromaEventListener, ChromaIpcChannel } from "@project-chroma/contracts/ipc";
 
 function createBridge(schema: unknown): unknown {
     if (schema && typeof schema === "object" && "channel" in schema && typeof schema.channel === "string") {
@@ -12,7 +12,7 @@ function createBridge(schema: unknown): unknown {
     return Object.fromEntries(Object.entries(schema).map(([key, value]) => [key, createBridge(value)]));
 }
 
-const generatedBridge = createBridge(ipcDefinition) as ChromaBridge;
+const generatedBridge = createBridge(ipcDefinition) as ChromaTransport;
 
 const chromaBridge = {
     ...generatedBridge,

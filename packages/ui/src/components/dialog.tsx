@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
-import { cn } from "@project-chroma/utils";
+import { cn } from "cn";
 import { Button } from "./button";
 import { IconX } from "@tabler/icons-react";
 

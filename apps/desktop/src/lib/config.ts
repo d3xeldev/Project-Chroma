@@ -18,23 +18,15 @@ type ConfigParams = {
 
 export type ConfigStore = {
     path: string;
-    get: () => Promise<ChromaConfig>;
-    set: (partial: Partial<ChromaConfig>) => Promise<void>;
-    update: (config: ChromaConfig) => Promise<void>;
+    get: () => Effect.Effect<ChromaConfig, ChromaError>;
+    set: (partial: Partial<ChromaConfig>) => Effect.Effect<void, ChromaError>;
+    update: (config: ChromaConfig) => Effect.Effect<void, ChromaError>;
 };
 
 export function createConfigStore({ app, fileName = "config.json" }: ConfigParams) {
     const configPath = path.join(app.getPath("userData"), fileName);
-    let operationQueue = Promise.resolve();
-
-    function enqueue<T>(operation: () => Promise<T>): Promise<T> {
-        const result = operationQueue.then(operation, operation);
-        operationQueue = result.then(
-            () => undefined,
-            () => undefined,
-        );
-        return result;
-    }
+    const semaphore = Semaphore.makeUnsafe(1);
+    const serialized = <A>(operation: () => Promise<A>) => semaphore.withPermits(1)(attemptPromise(operation).pipe(Effect.uninterruptible));
 
     async function read(): Promise<ChromaConfig> {
         try {

@@ -21,6 +21,7 @@
         "@project-chroma/contracts": "workspace:*",
         "@project-chroma/utils": "workspace:*",
         "better-sqlite3": "^12.5.0",
+        "effect": "catalog:",
         "electron-updater": "^6.6.2",
         "piscina": "^5.2.0",
         "sharp": "^0.35.3",
@@ -34,6 +35,8 @@
         "@types/node": "catalog:",
         "electron": "^39.2.7",
         "electron-builder": "^26.15.3",
+        "node-addon-api": "^8.9.2",
+        "node-gyp": "^13.0.2",
         "tsdown": "^0.22.0",
         "typescript": "catalog:",
         "vitest": "catalog:"

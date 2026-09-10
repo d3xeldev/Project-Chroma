@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 import { cpus } from "node:os";
+import { Effect } from "effect";
 import sharp from "sharp";
 import { Piscina } from "piscina";
 import { v4 as uuidv4 } from "uuid";
@@ -17,93 +18,73 @@ import type { PrepareItemProps } from "../workers/prepareItem.worker.ts";
 const originalsDir = (root: string) => path.join(root, "originals");
 const thumbsDir = (root: string) => path.join(root, "thumbnails");
 const adjustmentsDir = (root: string) => path.join(root, "adjustments");
-
-async function createDirectories(root: string) {
-    await fs.mkdir(originalsDir(root), { recursive: true });
-    await fs.mkdir(thumbsDir(root), { recursive: true });
-    await fs.mkdir(adjustmentsDir(root), { recursive: true });
+const createDirectories = (root: string) => Effect.forEach([originalsDir(root), thumbsDir(root), adjustmentsDir(root)], files.makeDirectory, { discard: true });
 }
 
 export function registerLibraryCommands(app: Electron.App, config: ConfigStore) {
-    const getConfig = () => config.get();
-    const withLibrary = async <T>(libraryId: string, callback: (library: Library) => T | Promise<T>) => {
-        const library = (await getConfig()).libraries.find(l => l.id === libraryId);
-        return library ? callback(library) : Result.reject(Errors.libraryNotFound());
-    };
+    const withLibrary = <A, E, R>(libraryId: string, callback: (library: Library) => Effect.Effect<A, E, R>) =>
+        Effect.gen(function* () {
+            const library = (yield* config.get()).libraries.find(l => l.id === libraryId);
+            if (!library) return yield* Effect.fail(Errors.libraryNotFound());
+            return yield* callback(library);
+        });
     const pathBelongsToLibrary = (candidatePath: string, libraryPath: string) => {
         const relativePath = path.relative(path.resolve(libraryPath), path.resolve(candidatePath));
         return relativePath === "" || (!relativePath.startsWith(".." + path.sep) && relativePath !== "..");
     };
-    const checkLibraryPathConflict = async (candidatePath: string, excludedLibraryId?: string) => {
-        const conflict = (await getConfig()).libraries.find(library => library.id !== excludedLibraryId && pathBelongsToLibrary(candidatePath, library.path));
-        if (!conflict) return;
+    const checkLibraryPathConflict = (candidatePath: string, excludedLibraryId?: string) =>
+        Effect.gen(function* () {
+            const conflict = (yield* config.get()).libraries.find(library => library.id !== excludedLibraryId && pathBelongsToLibrary(candidatePath, library.path));
+            if (!conflict) return;
 
-        return Result.reject(Errors.libraryPathConflict({ details: { path: candidatePath, libraryId: conflict.id } }));
-    };
+            return yield* Effect.fail(Errors.libraryPathConflict({ details: { path: candidatePath, libraryId: conflict.id } }));
+        });
 
     // Library
 
-    registerHandle(ipc.LIBRARY_GET, async () => (await getConfig()).libraries);
+    registerHandle(ipc.LIBRARY_GET, () => config.get().pipe(Effect.map(value => value.libraries)));
     registerHandle(ipc.LIBRARY_CHECK_HEALTH, (_, { libraryId }) => withLibrary(libraryId, lib => DB.withDatabase(lib.path, db => DB.library.checkVersionState(db))));
-    registerHandle(ipc.LIBRARY_GET_INFO_FROM_PATH, (_, { path: rootPath }) => {
-        const info = DB.withDatabase(rootPath, DB.library.fetchInfo);
-        if (!info.success) return Result.reject(info.error);
+    registerHandle(ipc.LIBRARY_GET_INFO_FROM_PATH, (_, { path: rootPath }) => DB.withDatabase(rootPath, DB.library.fetchInfo).pipe(Effect.map(info => ({ ...info, path: rootPath }))));
+    registerHandle(ipc.LIBRARY_CREATE, (_, { name, color, icon, path: rootPath }) =>
+        Effect.gen(function* () {
+            yield* checkLibraryPathConflict(rootPath);
 
-        return { ...info.data, path: rootPath };
-    });
-    registerHandle(ipc.LIBRARY_CREATE, async (_, { name, color, icon, path: rootPath }) => {
-        const conflicting = await checkLibraryPathConflict(rootPath);
-        if (conflicting) return conflicting;
+            yield* files.makeDirectory(rootPath);
+            yield* Effect.scoped(
+                Effect.gen(function* () {
+                    const db = yield* DB.createDatabase(rootPath);
+                    yield* attempt(() => {
+                        DB.createSchema(db);
+                        DB.library.fillMetadata(db, name, icon, color);
+                    });
+                }),
+            );
+            yield* createDirectories(rootPath);
 
-        await fs.mkdir(rootPath, { recursive: true });
-        const db = DB.createConnection(path.join(rootPath, "lib.db"));
-
-        try {
-            DB.createSchema(db);
-            DB.library.fillMetadata(db, name, icon, color);
-        } finally {
-            db.close();
-        }
-
-        createDirectories(rootPath);
-
-        const lib = {
-            id: crypto.randomUUID(),
-            name: name,
-            icon: icon,
-            color: color,
-            path: rootPath,
-        } satisfies Library;
-        await config.set({ libraries: [...(await getConfig()).libraries, lib] });
-
-        return lib;
-    });
-    registerHandle(ipc.LIBRARY_ADD, async (_, { path: rootPath }) => {
-        const conflicting = await checkLibraryPathConflict(rootPath);
-        if (conflicting) return conflicting;
-
-        const info = DB.withDatabase(rootPath, DB.library.fetchInfo);
-        if (!info.success) return Result.reject(info.error);
-
-        const lib = {
-            id: crypto.randomUUID(),
-            name: info.data.name,
-            icon: info.data.icon,
-            color: info.data.color,
-            path: rootPath,
-        } satisfies Library;
-        await config.set({ libraries: [...(await getConfig()).libraries, lib] });
-
-        return lib;
-    });
-    registerHandle(ipc.LIBRARY_UPDATE_PATH, async (_, { libraryId, newPath }) => {
-        const conflicting = await checkLibraryPathConflict(newPath, libraryId);
-        if (conflicting) return conflicting;
-
-        return await config.set({ libraries: (await getConfig()).libraries.map(l => (l.id === libraryId ? { ...l, path: newPath } : l)) });
-    });
+            const lib: Library = { id: yield* newLibraryId(rootPath, config), name, icon, color, path: rootPath };
+            yield* config.set({ libraries: [...(yield* config.get()).libraries, lib] });
+            return lib;
+        }),
     );
-    registerHandle(ipc.LIBRARY_REMOVE, async (_, { libraryId }) => Result.accept(await config.set({ libraries: (await getConfig()).libraries.filter(l => l.id !== libraryId) })));
+    registerHandle(ipc.LIBRARY_ADD, (_, { path: rootPath }) =>
+        Effect.gen(function* () {
+            yield* checkLibraryPathConflict(rootPath);
+
+            const info = yield* DB.withDatabase(rootPath, DB.library.fetchInfo);
+            const lib: Library = { id: yield* newLibraryId(rootPath, config), name: info.name, icon: info.icon, color: info.color, path: rootPath };
+
+            yield* config.set({ libraries: [...(yield* config.get()).libraries, lib] });
+            return lib;
+        }),
+    );
+    registerHandle(ipc.LIBRARY_UPDATE_PATH, (_, { libraryId, newPath }) =>
+        Effect.gen(function* () {
+            yield* checkLibraryPathConflict(newPath, libraryId);
+            yield* config.set({ libraries: (yield* config.get()).libraries.map(l => (l.id === libraryId ? { ...l, path: newPath } : l)) });
+        }),
+    );
+    registerHandle(ipc.LIBRARY_UPGRADE, (_, { libraryId }) => withLibrary(libraryId, lib => DB.withDatabase(lib.path, DB.migrateToLatest)));
+    registerHandle(ipc.LIBRARY_REMOVE, (_, { libraryId }) => config.get().pipe(Effect.flatMap(current => config.set({ libraries: current.libraries.filter(l => l.id !== libraryId) }))));
 
     // Items
 
