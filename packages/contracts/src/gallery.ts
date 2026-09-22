@@ -1,10 +1,13 @@
-export interface Library {
-    id: string;
-    name: string;
-    icon: string;
-    color: string;
-    path: string;
-}
+import { Schema } from "effect";
+
+export const Library = Schema.Struct({
+    id: Schema.String,
+    name: Schema.String,
+    icon: Schema.String,
+    color: Schema.String,
+    path: Schema.String,
+});
+export type Library = typeof Library.Type;
 
 export interface Item {
     id: string;

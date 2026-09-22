@@ -269,6 +269,9 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.13.18
         version: 3.14.11(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      cn:
+        specifier: 'catalog:'
+        version: 0.2.6
       effect:
         specifier: 'catalog:'
         version: 4.0.0-rc.112

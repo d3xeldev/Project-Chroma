@@ -25,7 +25,7 @@ export function registerLibraryCommands(app: Electron.App, config: ConfigStore) 
     const withLibrary = <A, E, R>(libraryId: string, callback: (library: Library) => Effect.Effect<A, E, R>) =>
         Effect.gen(function* () {
             const library = (yield* config.get()).libraries.find(l => l.id === libraryId);
-            if (!library) return yield* Effect.fail(Errors.libraryNotFound());
+            if (!library) return yield* Effect.fail(new LibraryNotFoundError({}));
             return yield* callback(library);
         });
     const pathBelongsToLibrary = (candidatePath: string, libraryPath: string) => {
@@ -37,7 +37,7 @@ export function registerLibraryCommands(app: Electron.App, config: ConfigStore) 
             const conflict = (yield* config.get()).libraries.find(library => library.id !== excludedLibraryId && pathBelongsToLibrary(candidatePath, library.path));
             if (!conflict) return;
 
-            return yield* Effect.fail(Errors.libraryPathConflict({ details: { path: candidatePath, libraryId: conflict.id } }));
+            return yield* Effect.fail(new LibraryPathConflictError({ details: { path: candidatePath, libraryId: conflict.id } }));
         });
 
     // Library
@@ -66,7 +66,7 @@ export function registerLibraryCommands(app: Electron.App, config: ConfigStore) 
             return lib;
         }),
     );
-    registerHandle(ipc.LIBRARY_ADD, (_, { path: rootPath }) =>
+    registerHandler(ipc.LIBRARY_ADD, (_, { path: rootPath }) =>
         Effect.gen(function* () {
             yield* checkLibraryPathConflict(rootPath);
 

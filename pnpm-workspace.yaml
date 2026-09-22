@@ -4,9 +4,14 @@ packages:
     - scripts
 
 allowBuilds:
+    "@ffmpeg-installer/darwin-arm64": true
+    "@ffprobe-installer/darwin-arm64": true
+    better-sqlite3: true
     electron: true
     electron-winstaller: false
     msgpackr-extract: true
+    onnxruntime-node: true
+    protobufjs: true
     sharp: true
 
 overrides:

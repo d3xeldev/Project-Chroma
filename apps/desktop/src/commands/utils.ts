@@ -1,8 +1,11 @@
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { Effect } from "effect";
-import { attempt, attemptPromise, Errors } from "@project-chroma/utils";
-import { getBinaryPath } from "../lib/binaries.ts";
+import { attempt, attemptPromise } from "@project-chroma/utils";
+import { MediaProcessingFailedError, type ChromaError } from "@project-chroma/utils/errors";
+import { getBinaryPath, type ChromaBinary } from "../lib/binaries.ts";
+import * as files from "../lib/effects/fileSystem.ts";
+import { decodeImage } from "../lib/effects/image.ts";
 import type { Sharp } from "sharp";
 
 export function generateImageThumbnail(image: Sharp, { destination, size = 512 }: { destination?: string; size?: number }) {
@@ -12,7 +15,7 @@ export function generateImageThumbnail(image: Sharp, { destination, size = 512 }
             yield* files.makeDirectory(path.dirname(destination));
             yield* attemptPromise(() => gen.toFile(destination));
         } else return yield* attemptPromise(() => gen.toBuffer());
-    }).pipe(Effect.mapError(error => new Errors.MediaProcessingFailedError({ cause: error })));
+    }).pipe(Effect.mapError(error => new MediaProcessingFailedError({ cause: error })));
 }
 
 export function generateVideoThumbnail(input: string, options: { destination?: string; size?: number }) {
@@ -29,7 +32,7 @@ function runMedia(binary: ChromaBinary, args: string[]) {
             try {
                 child = spawn(binaryPath, args, { stdio: ["ignore", "pipe", "pipe"] });
             } catch (error) {
-                resume(Effect.fail(new Errors.MediaProcessingFailedError({ cause: error })));
+                resume(Effect.fail(new MediaProcessingFailedError({ cause: error })));
                 return;
             }
 
@@ -41,16 +44,14 @@ function runMedia(binary: ChromaBinary, args: string[]) {
                 stderr = (stderr + chunk.toString()).slice(-8192);
             });
 
-            child.once("error", error => resume(Effect.fail(new Errors.MediaProcessingFailedError({ cause: error }))));
-            child.once("close", code =>
-                resume(code === 0 ? Effect.succeed(Buffer.concat(chunks)) : Effect.fail(new Errors.MediaProcessingFailedError({ details: { binary, exitCode: code, stderr } }))),
-            );
+            child.once("error", error => resume(Effect.fail(new MediaProcessingFailedError({ cause: error }))));
+            child.once("close", code => resume(code === 0 ? Effect.succeed(Buffer.concat(chunks)) : Effect.fail(new MediaProcessingFailedError({ details: { binary, exitCode: code, stderr } }))));
 
             return Effect.sync(() => {
                 if (child.exitCode === null) child.kill();
             });
         });
-    }).pipe(Effect.timeoutOrElse({ duration: "2 minutes", orElse: () => Effect.fail(new Errors.MediaProcessingFailedError({ message: `${binary} timed out` })) }));
+    }).pipe(Effect.timeoutOrElse({ duration: "2 minutes", orElse: () => Effect.fail(new MediaProcessingFailedError({ message: `${binary} timed out` })) }));
 }
 
 interface FFprobeOutput {

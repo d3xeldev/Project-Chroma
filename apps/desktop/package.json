@@ -1,5 +1,5 @@
 {
-    "name": "@project-chroma/desktop",
+    "name": "@recall/desktop",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -18,8 +18,8 @@
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "@project-chroma/contracts": "workspace:*",
-        "@project-chroma/utils": "workspace:*",
+        "@recall/contracts": "workspace:*",
+        "@recall/shared": "workspace:*",
         "better-sqlite3": "^12.5.0",
         "effect": "catalog:",
         "electron-updater": "^6.6.2",

@@ -1,4 +1,5 @@
 import type { Effect } from "effect";
+import type { ChromaError, IpcResponse } from "@project-chroma/utils/errors";
 import type { ChromaConfig } from "./config.ts";
 import type {
     Album,
@@ -185,7 +186,9 @@ type ChromaApiDefinition = {
     };
 };
 
-type DerivedChromaBridge = BridgeFromSchema<typeof ipcDefinition>;
+type ChromaApi<TDefinition, TTransport extends boolean> = TDefinition extends ChromaIpcChannel
+    ? (...args: ChromaIpcArgs<TDefinition>) => TTransport extends true ? Promise<IpcResponse<ChromaIpcResult<TDefinition>>> : Effect.Effect<ChromaIpcResult<TDefinition>, ChromaError>
+    : { [TKey in keyof TDefinition]: ChromaApi<TDefinition[TKey], TTransport> };
 
 export type ChromaIpcInvoke = <TChannel extends ChromaIpcChannel, const TArgs extends ChromaIpcArgs<TChannel>>(channel: TChannel, ...args: TArgs) => Promise<Result<ChromaIpcResult<TChannel, TArgs>>>;
 

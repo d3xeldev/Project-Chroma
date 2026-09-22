@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@project-chroma/utils";
+import { cn } from "cn";
 
 const iconColorVariants = cva("flex justify-center items-center bg-(--lib-color)/30 ring-(--lib-color) aspect-square *:drop-shadow-sm", {
     variants: {

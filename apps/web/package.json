@@ -1,5 +1,5 @@
 {
-    "name": "@project-chroma/web",
+    "name": "@recall/web",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -12,13 +12,15 @@
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "@project-chroma/contracts": "workspace:*",
-        "@project-chroma/ui": "workspace:*",
-        "@project-chroma/utils": "workspace:*",
+        "@recall/contracts": "workspace:*",
+        "@recall/shared": "workspace:*",
+        "@recall/ui": "workspace:*",
         "@tabler/icons-react": "catalog:",
         "@tanstack/react-query": "^5.90.20",
         "@tanstack/react-router": "^1.155.0",
         "@tanstack/react-virtual": "^3.13.18",
+        "cn": "catalog:",
+        "effect": "catalog:",
         "emoji-regex": "^10.6.0",
         "motion": "^12.29.0",
         "react": "catalog:",
@@ -38,8 +40,8 @@
         "@vitejs/plugin-react": "^5.1.2",
         "babel-plugin-react-compiler": "^1.0.0",
         "tailwindcss": "catalog:",
-        "vitest": "catalog:",
         "typescript": "catalog:",
-        "vite": "catalog:"
+        "vite": "catalog:",
+        "vitest": "catalog:"
     }
 }

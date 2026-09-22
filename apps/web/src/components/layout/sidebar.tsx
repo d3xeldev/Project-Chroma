@@ -1,7 +1,7 @@
+import { cn } from "cn";
 import { useLocation, Link } from "@tanstack/react-router";
 import { IconCircles, IconCirclesFilled, IconFolder, IconFolderFilled, IconLayoutGrid, IconLayoutGridFilled } from "@tabler/icons-react";
 import { Button } from "@project-chroma/ui/button";
-import { cn } from "@project-chroma/utils";
 
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
     const location = useLocation();

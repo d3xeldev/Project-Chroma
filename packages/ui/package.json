@@ -1,5 +1,5 @@
 {
-    "name": "@project-chroma/ui",
+    "name": "@recall/ui",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -23,7 +23,7 @@
         "tw-animate-css": "catalog:"
     },
     "devDependencies": {
-        "@project-chroma/contracts": "workspace:*",
+        "@recall/contracts": "workspace:*",
         "@types/node": "catalog:",
         "@types/react": "catalog:",
         "@types/react-dom": "catalog:",

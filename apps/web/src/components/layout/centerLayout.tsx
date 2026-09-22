@@ -1,4 +1,4 @@
-import { cn } from "@project-chroma/utils";
+import { cn } from "cn";
 
 export function CenterLayout({ children, className }: { children: React.ReactNode; className?: string; title?: string }) {
     return (

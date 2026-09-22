@@ -1,9 +1,9 @@
+import { cn } from "cn";
 import { IconInfoCircle, IconX } from "@tabler/icons-react";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import { Button } from "@project-chroma/ui/button";
 import { Progress } from "@project-chroma/ui/progress";
 import { notiIcons } from "@project-chroma/ui/sonner";
-import { cn } from "@project-chroma/utils";
 import { IconBox } from "@/components/IconBox";
 import { useNotifications } from "@/lib/useNotifications";
 import type { Notification } from "@project-chroma/contracts/gallery";

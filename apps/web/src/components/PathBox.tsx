@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@project-chroma/utils";
+import { cn } from "cn";
 
 const pathBoxVariants = cva("flex items-center bg-secondary font-mono whitespace-nowrap rounded-lg ring-1 ring-input select-text overflow-x-auto no-scrollbar", {
     variants: {

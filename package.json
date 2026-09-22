@@ -1,5 +1,5 @@
 {
-    "name": "project-chroma",
+    "name": "recall",
     "private": true,
     "type": "module",
     "scripts": {
@@ -7,7 +7,7 @@
         "dev:desktop": "node scripts/runner.ts dev:desktop",
         "dev:web": "node scripts/runner.ts dev:web",
         "build": "pnpm -r --if-present --filter './apps/*' --filter './packages/*' build",
-        "build:desktop": "pnpm --filter @project-chroma/desktop build && pnpm --filter @project-chroma/web build",
+        "build:desktop": "pnpm --filter @recall/desktop build && pnpm --filter @recall/web build",
         "typecheck": "pnpm -r --if-present --workspace-concurrency=2",
         "check": "pnpm typecheck && pnpm lint && pnpm format:check",
         "test": "pnpm -r --if-present test",
@@ -27,5 +27,5 @@
     "engines": {
         "node": "^24"
     },
-    "packageManager": "pnpm@12.3.4"
+    "packageManager": "pnpm@12.5.1"
 }

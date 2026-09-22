@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@project-chroma/utils";
+import { cn } from "cn";
 
 const iconBoxVariants = cva(
     "flex text-secondary-foreground bg-secondary-foreground/8 border-foreground/8 inset-shadow-center [--tw-inset-shadow-color:var(--solid)]/50 drop-shadow-2xl drop-shadow-primary/15 ring ring-input transform-gpu *:size-full",

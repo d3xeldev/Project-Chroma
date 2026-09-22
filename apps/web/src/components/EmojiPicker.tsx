@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { cn } from "cn";
 import emojiRegex from "emoji-regex";
 import { Button } from "@project-chroma/ui/button";
 import { Input } from "@project-chroma/ui/input";
-import { cn } from "@project-chroma/utils";
 
 interface EmojiPickerProps extends React.ComponentProps<"div"> {
     disabled?: boolean;

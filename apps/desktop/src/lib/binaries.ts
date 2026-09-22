@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { attempt, Errors } from "@project-chroma/utils";
+import { attempt } from "@project-chroma/utils";
+import { BinaryNotFoundError } from "@project-chroma/utils/errors";
 
 export type ChromaBinary = "ffmpeg" | "ffprobe";
 
@@ -13,7 +14,7 @@ export function getBinaryPath(binary: ChromaBinary) {
         const binaryPath = path.join(process.env.ELECTRON_START_URL ? developmentDirectory : packagedDirectory, `${binary}${extension}`);
 
         if (!fs.existsSync(binaryPath)) {
-            throw new Errors.BinaryNotFoundError({ message: `Bundled ${binary} binary is not available.`, details: { binary, binaryPath } });
+            throw new BinaryNotFoundError({ message: `Bundled ${binary} binary is not available.`, details: { binary, binaryPath } });
         }
 
         return binaryPath;

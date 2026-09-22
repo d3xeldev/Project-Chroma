@@ -6,7 +6,7 @@ const shared = {
     sourcemap: true,
     outExtensions: () => ({ js: ".cjs" }),
     deps: {
-        alwaysBundle: (id: string) => id.startsWith("@project-chroma/"),
+        alwaysBundle: (id: string) => id.startsWith("@recall/"),
     },
 };
 
