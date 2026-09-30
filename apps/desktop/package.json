@@ -1,25 +1,28 @@
 {
-    "name": "@recall/desktop",
+    "name": "@luma/desktop",
     "version": "0.1.0",
     "private": true,
+    "description": "Luma's desktop application",
+    "author": "d3xeldev",
     "type": "module",
     "main": "dist-electron/main.cjs",
     "scripts": {
-        "dev": "bun run bundle:binaries && bun run build && cross-env ELECTRON_START_URL=http://localhost:5173 electron .",
-        "start": "bun run bundle:binaries && electron .",
-        "build": "tsdown",
-        "bundle:binaries": "bun scripts/bundleBinaries.ts",
-        "package": "bun run build && bun run bundle:binaries && electron-builder",
-        "rebuild": "bun run rebuild:electron && bun run rebuild:sharp",
+        "start": "node scripts/start-electron.mjs",
+        "bundle:binaries": "node scripts/bundle-binaries.mjs",
+        "build": "vite build --mode main && vite build --mode preload",
+        "package": "electron-builder --publish never",
+        "release": "electron-builder --publish always",
+        "rebuild": "pnpm run rebuild:electron && pnpm run rebuild:sharp",
         "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
-        "rebuild:sharp": "cd ./node_modules/sharp && bun run build",
+        "rebuild:sharp": "cd ./node_modules/sharp && pnpm run build",
+        "ensure:electron": "node scripts/ensure-electron-runtime.mjs",
         "test": "vitest run",
         "test:watch": "vitest",
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "@recall/contracts": "workspace:*",
-        "@recall/shared": "workspace:*",
+        "@luma/contracts": "workspace:*",
+        "@luma/shared": "workspace:*",
         "better-sqlite3": "^12.5.0",
         "effect": "catalog:",
         "electron-updater": "^6.6.2",
@@ -53,5 +56,5 @@
             }
         ]
     },
-    "productName": "Project Chroma"
+    "productName": "Luma"
 }

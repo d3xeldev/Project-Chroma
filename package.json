@@ -1,11 +1,11 @@
 {
-    "name": "recall",
+    "name": "luma",
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "node scripts/runner.ts dev",
-        "dev:desktop": "node scripts/runner.ts dev:desktop",
-        "dev:web": "node scripts/runner.ts dev:web",
+        "start:desktop": "pnpm --filter @luma/desktop start",
+        "dev": "pnpm --filter @luma/desktop dev",
+        "dev:web": "pnpm --filter @luma/web dev",
         "build": "pnpm -r --if-present --filter './apps/*' --filter './packages/*' build",
         "build:desktop": "pnpm --filter @recall/desktop build && pnpm --filter @recall/web build",
         "typecheck": "pnpm -r --if-present --workspace-concurrency=2",

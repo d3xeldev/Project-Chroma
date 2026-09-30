@@ -1,5 +1,5 @@
 {
-    "name": "@recall/shared",
+    "name": "@luma/shared",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -12,7 +12,7 @@
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "@recall/contracts": "workspace:*",
+        "@luma/contracts": "workspace:*",
         "date-fns": "^4.4.0",
         "effect": "catalog:"
     },

@@ -1,0 +1,124 @@
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeModule from "node:module";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+
+const require = NodeModule.createRequire(import.meta.url);
+const hostPlatform = NodeOS.platform();
+const hostArch = NodeOS.arch();
+
+function getPlatformPath() {
+    switch (hostPlatform) {
+        case "darwin":
+            return "Electron.app/Contents/MacOS/Electron";
+        case "linux":
+            return "electron";
+        case "win32":
+            return "electron.exe";
+        default:
+            throw new Error(`Electron builds are not available on platform: ${hostPlatform}`);
+    }
+}
+
+function getRequiredRuntimePaths(electronDir, platformPath) {
+    const paths = [NodePath.join(electronDir, "dist", platformPath)];
+
+    if (hostPlatform === "darwin") {
+        paths.push(
+            NodePath.join(electronDir, "dist", "Electron.app", "Contents", "Info.plist"),
+            NodePath.join(electronDir, "dist", "Electron.app", "Contents", "Frameworks", "Electron Framework.framework", "Electron Framework"),
+        );
+    }
+
+    return paths;
+}
+
+function missingRuntimePaths(electronDir, platformPath) {
+    return getRequiredRuntimePaths(electronDir, platformPath).filter(runtimePath => !NodeFS.existsSync(runtimePath));
+}
+
+function invalidRuntimePaths(electronDir, platformPath) {
+    if (hostPlatform !== "darwin") {
+        return [];
+    }
+
+    return [
+        NodePath.join(electronDir, "dist", platformPath),
+        NodePath.join(electronDir, "dist", "Electron.app", "Contents", "Frameworks", "Electron Framework.framework", "Electron Framework"),
+    ].filter(runtimePath => {
+        if (!NodeFS.existsSync(runtimePath)) {
+            return false;
+        }
+        const result = NodeChildProcess.spawnSync("file", ["-b", runtimePath], { encoding: "utf8" });
+        return result.status !== 0 || !result.stdout.includes("Mach-O");
+    });
+}
+
+function runChecked(command, args) {
+    const result = NodeChildProcess.spawnSync(command, args, { encoding: "utf8", stdio: "inherit" });
+    if (result.status !== 0) {
+        throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status ?? "unknown"}`);
+    }
+}
+
+function installElectronRuntime(electronDir, version) {
+    const tempDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "electron-runtime-"));
+    const zipPath = NodePath.join(tempDir, `electron-v${version}-${hostPlatform}-${hostArch}.zip`);
+
+    try {
+        runChecked("curl", ["-fsSL", `https://github.com/electron/electron/releases/download/v${version}/electron-v${version}-${hostPlatform}-${hostArch}.zip`, "-o", zipPath]);
+        if (hostPlatform === "darwin") {
+            runChecked("ditto", ["-x", "-k", zipPath, NodePath.join(electronDir, "dist")]);
+        } else {
+            runChecked("python3", [
+                "-c",
+                "import os, sys, zipfile; os.makedirs(sys.argv[2], exist_ok=True); zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])",
+                zipPath,
+                NodePath.join(electronDir, "dist"),
+            ]);
+        }
+    } finally {
+        NodeFS.rmSync(tempDir, { recursive: true, force: true });
+    }
+}
+
+export function ensureElectronRuntime() {
+    const electronPackageJsonPath = require.resolve("electron/package.json");
+    const electronPackageJson = JSON.parse(NodeFS.readFileSync(electronPackageJsonPath, "utf8"));
+    const electronDir = NodePath.dirname(electronPackageJsonPath);
+    const platformPath = getPlatformPath();
+    const electronPath = NodePath.join(electronDir, "dist", platformPath);
+
+    if (missingRuntimePaths(electronDir, platformPath).length > 0 || invalidRuntimePaths(electronDir, platformPath).length > 0) {
+        NodeFS.rmSync(NodePath.join(electronDir, "dist"), { recursive: true, force: true });
+        NodeFS.rmSync(NodePath.join(electronDir, "path.txt"), { force: true });
+        installElectronRuntime(electronDir, electronPackageJson.version);
+    }
+
+    const missing = missingRuntimePaths(electronDir, platformPath);
+    const invalid = invalidRuntimePaths(electronDir, platformPath);
+    if (missing.length > 0 || invalid.length > 0) {
+        throw new Error(
+            `Electron runtime is incomplete after install.\nMissing:\n${missing.map(runtimePath => `- ${runtimePath}`).join("\n")}\nInvalid:\n${invalid
+                .map(runtimePath => `- ${runtimePath}`)
+                .join("\n")}`,
+        );
+    }
+
+    if (hostPlatform !== "win32") {
+        NodeFS.chmodSync(electronPath, 0o755);
+    }
+
+    const pathFile = NodePath.join(electronDir, "path.txt");
+    const currentPath = NodeFS.existsSync(pathFile) ? NodeFS.readFileSync(pathFile, "utf8") : undefined;
+    if (currentPath !== platformPath) {
+        NodeFS.writeFileSync(pathFile, platformPath);
+    }
+
+    return electronPath;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+    process.stdout.write(`${ensureElectronRuntime()}\n`);
+}

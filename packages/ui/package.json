@@ -1,5 +1,5 @@
 {
-    "name": "@recall/ui",
+    "name": "@luma/ui",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -23,7 +23,7 @@
         "tw-animate-css": "catalog:"
     },
     "devDependencies": {
-        "@recall/contracts": "workspace:*",
+        "@luma/contracts": "workspace:*",
         "@types/node": "catalog:",
         "@types/react": "catalog:",
         "@types/react-dom": "catalog:",

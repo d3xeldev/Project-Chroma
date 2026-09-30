@@ -1,5 +1,5 @@
 {
-    "name": "@recall/web",
+    "name": "@luma/web",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -12,9 +12,9 @@
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "@recall/contracts": "workspace:*",
-        "@recall/shared": "workspace:*",
-        "@recall/ui": "workspace:*",
+        "@luma/contracts": "workspace:*",
+        "@luma/shared": "workspace:*",
+        "@luma/ui": "workspace:*",
         "@tabler/icons-react": "catalog:",
         "@tanstack/react-query": "^5.90.20",
         "@tanstack/react-router": "^1.155.0",
