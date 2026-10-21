@@ -22,7 +22,8 @@ export default defineConfig({
         tsconfigPaths: true,
     },
     server: {
-        port: 5173,
+        host: process.env.HOST ?? "localhost",
+        port: Number.parseInt(process.env.PORT ?? "5173", 10),
         strictPort: true,
     },
 });

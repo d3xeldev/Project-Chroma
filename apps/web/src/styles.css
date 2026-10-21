@@ -1,4 +1,4 @@
-@import "@project-chroma/ui/globals.css";
+@import "@luma/ui/globals.css";
 @source "../../../packages/ui/src/**/*.{ts,tsx}";
 
 @layer base {

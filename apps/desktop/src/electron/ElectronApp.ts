@@ -1,3 +1,4 @@
+import * as Electron from "electron";
 import { Context, Effect, Layer, Schema, Scope } from "effect";
 
 export interface ElectronAppMetadata {
@@ -35,7 +36,7 @@ export class ElectronApp extends Context.Service<
         readonly requestSingleInstanceLock: Effect.Effect<boolean>;
         readonly on: <Args extends ReadonlyArray<unknown>>(eventName: string, listener: (...args: Args) => void) => Effect.Effect<void, never, Scope.Scope>;
     }
->()("@app/desktop/electron/ElectronApp") {}
+>()("@luma/desktop/electron/ElectronApp") {}
 
 const addScopedAppListener = <Args extends ReadonlyArray<unknown>>(eventName: string, listener: (...args: Args) => void): Effect.Effect<void, never, Scope.Scope> =>
     Effect.acquireRelease(

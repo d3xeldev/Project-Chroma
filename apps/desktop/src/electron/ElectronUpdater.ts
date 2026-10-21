@@ -44,7 +44,7 @@ export class ElectronUpdater extends Context.Service<
         readonly quitAndInstall: (options: { readonly isSilent: boolean; readonly isForceRunAfter: boolean }) => Effect.Effect<void, ElectronUpdaterQuitAndInstallError>;
         readonly on: <Args extends ReadonlyArray<unknown>>(eventName: string, listener: (...args: Args) => void) => Effect.Effect<void, never, Scope.Scope>;
     }
->()("@app/desktop/electron/ElectronUpdater") {}
+>()("@luma/desktop/electron/ElectronUpdater") {}
 
 export const make = ElectronUpdater.of({
     setFeedURL: options =>

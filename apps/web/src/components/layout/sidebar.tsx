@@ -1,9 +1,9 @@
 import { cn } from "cn";
 import { useLocation, Link } from "@tanstack/react-router";
 import { IconCircles, IconCirclesFilled, IconFolder, IconFolderFilled, IconLayoutGrid, IconLayoutGridFilled } from "@tabler/icons-react";
-import { Button } from "@project-chroma/ui/button";
+import { Button } from "@luma/ui/button";
 
-export function Sidebar({ collapsed }: { collapsed: boolean }) {
+export function Sidebar() {
     const location = useLocation();
 
     const navItems = [
@@ -13,7 +13,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
     ];
 
     return (
-        <nav className={cn("w-28 h-full px-2 space-y-2 transition-[margin] duration-200", collapsed ? "-ml-28" : "")}>
+        <nav className="w-28 h-full px-2 space-y-2 transition-[margin] duration-200">
             {navItems.map(item => {
                 const isActive = item.path === "/" ? location.pathname === item.path : location.pathname.startsWith(item.path);
                 const Icon = !isActive ? item.icon : item.iconSelected;

@@ -2,7 +2,7 @@ import { toast as sonnerToast, Toaster as Sonner, type ToasterProps } from "sonn
 import { IconCircleCheck, IconInfoCircle, IconAlertTriangle, IconX, IconAlertSquareRounded } from "@tabler/icons-react";
 import { Button } from "./button";
 import { Spinner } from "./spinner";
-import type { Notification } from "@project-chroma/contracts/gallery";
+import type { Notification } from "@luma/contracts/gallery";
 
 export const notiIcons: Record<Notification["type"], React.ReactNode> = {
     info: <IconInfoCircle className="size-4.5 text-blue-500" />,

@@ -1,6 +1,6 @@
 import { Context, Effect, FileSystem, Layer, Option, Path, Schema, SynchronizedRef } from "effect";
-import { defaultDesktopSettings, DesktopSettingsSchemaDoc, DesktopTheme, DesktopUpdateChannel, type DesktopSettings as DesktopSettingsType } from "@recall/contracts";
-import { writeFileStringAtomically } from "@recall/shared/atomicWrite";
+import { defaultDesktopSettings, DesktopSettingsSchemaDoc, DesktopTheme, DesktopUpdateChannel, type DesktopSettings as DesktopSettingsType } from "@luma/contracts";
+import { writeFileStringAtomically } from "@luma/shared/atomicWrite";
 
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 
@@ -38,7 +38,7 @@ export class DesktopSettings extends Context.Service<
         readonly setAccentColor: (theme: string) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
         readonly setUpdateChannel: (channel: DesktopUpdateChannel) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
     }
->()("@app/desktop/settings/DesktopSettings") {}
+>()("@luma/desktop/settings/DesktopSettings") {}
 
 function normalizeDocument(parsed: DesktopSettingsSchemaDoc): DesktopSettingsType {
     return {

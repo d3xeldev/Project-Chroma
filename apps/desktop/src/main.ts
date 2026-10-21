@@ -1,14 +1,27 @@
-import { app, BrowserWindow, nativeTheme, net, protocol, session, shell } from "electron";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createConfigStore } from "./lib/config.ts";
-import { registerIpcHandlers } from "./commands/ipc.ts";
-import { configureContentSecurityPolicy, registerChromaFileProtocol } from "./security.ts";
+import * as NodeOS from "node:os";
+import * as Electron from "electron";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const isDev = Boolean(process.env.ELECTRON_START_URL);
+import { Effect, Layer } from "effect";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
+import { HostProcessPlatform } from "@luma/shared/hostProcess";
 
-let mainWindow: BrowserWindow | null = null;
+import * as DesktopApp from "./app/DesktopApp.ts";
+import * as DesktopEnvironment from "./app/DesktopEnvironment.ts";
+import * as DesktopIpc from "./app/DesktopIpc.ts";
+import * as DesktopLifecycle from "./app/DesktopLifecycle.ts";
+import * as DesktopObservability from "./app/DesktopObservability.ts";
+import * as DesktopSettings from "./app/DesktopSettings.ts";
+import * as DesktopShutdown from "./app/DesktopShutdown.ts";
+import * as DesktopState from "./app/DesktopState.ts";
+import * as DesktopUpdater from "./app/DesktopUpdater.ts";
+import * as DesktopWindow from "./app/DesktopWindow.ts";
+import * as ElectronApp from "./electron/ElectronApp.ts";
+import * as ElectronDialog from "./electron/ElectronDialog.ts";
+import * as ElectronMenu from "./electron/ElectronMenu.ts";
+import * as ElectronShell from "./electron/ElectronShell.ts";
+import * as ElectronTheme from "./electron/ElectronTheme.ts";
+import * as ElectronUpdater from "./electron/ElectronUpdater.ts";
+import * as ElectronWindow from "./electron/ElectronWindow.ts";
 
 protocol.registerSchemesAsPrivileged([
     {
@@ -22,72 +35,39 @@ protocol.registerSchemesAsPrivileged([
     },
 ]);
 
-function getInitialWindowBackgroundColor(): string {
-    return nativeTheme.shouldUseDarkColors ? "#0a0a0a" : "#ffffff";
-}
+const desktopEnvironmentLayer = Layer.unwrap(
+    Effect.gen(function* () {
+        const metadata = yield* Effect.service(ElectronApp.ElectronApp).pipe(Effect.flatMap(app => app.metadata));
+        const platform = yield* HostProcessPlatform;
+        return DesktopEnvironment.layer({
+            dirname: __dirname,
+            homeDirectory: NodeOS.homedir(),
+            platform,
+            appVersion: metadata.appVersion,
+            appPath: metadata.appPath,
+            isPackaged: metadata.isPackaged,
+            resourcesPath: metadata.resourcesPath,
+        });
+    }),
+).pipe(Layer.provide(ElectronApp.layer));
 
-function getRendererUrl(): string {
-    if (isDev) {
-        return process.env.ELECTRON_START_URL ?? "http://localhost:5173";
-    }
+const electronLayer = Layer.mergeAll(
+    ElectronApp.layer,
+    ElectronDialog.layer,
+    ElectronMenu.layer,
+    ElectronShell.layer,
+    ElectronTheme.layer,
+    ElectronUpdater.layer,
+    ElectronWindow.layer,
+    DesktopIpc.layer(Electron.ipcMain),
+);
 
-    const rendererPath = app.isPackaged ? path.join(process.resourcesPath, "web/index.html") : path.join(__dirname, "../../web/dist/index.html");
-    return `file://${rendererPath}`;
-}
+const desktopFoundationLayer = Layer.mergeAll(DesktopState.layer, DesktopShutdown.layer, DesktopObservability.layer, DesktopSettings.layer).pipe(Layer.provideMerge(desktopEnvironmentLayer));
 
-function revealWindow(window: BrowserWindow): void {
-    if (window.isDestroyed()) return;
-    if (window.isMinimized()) window.restore();
-    if (!window.isVisible()) window.show();
-    if (process.platform === "darwin") app.focus({ steal: true });
-    window.focus();
-}
+const desktopWindowLayer = DesktopWindow.layer.pipe(Layer.provideMerge(desktopFoundationLayer));
+const desktopApplicationLayer = Layer.mergeAll(DesktopLifecycle.layer, DesktopUpdater.layer).pipe(Layer.provideMerge(desktopWindowLayer));
 
-function createWindow() {
-    const window = new BrowserWindow({
-        width: 1280,
-        height: 800,
-        minWidth: 900,
-        minHeight: 620,
-        show: false,
-        backgroundColor: getInitialWindowBackgroundColor(),
-        title: app.name,
-        titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
-        trafficLightPosition: { x: 17, y: 17 },
-        webPreferences: {
-            preload: path.join(__dirname, "preload.cjs"),
-            contextIsolation: true,
-            nodeIntegration: false,
-            sandbox: true,
-        },
-    });
-
-    window.webContents.setWindowOpenHandler(({ url }) => {
-        if (url.startsWith("https://") || url.startsWith("mailto:")) {
-            void shell.openExternal(url);
-        }
-
-        return { action: "deny" };
-    });
-
-    window.once("ready-to-show", () => revealWindow(window));
-    if (process.platform === "linux") {
-        window.webContents.once("did-finish-load", () => revealWindow(window));
-    }
-
-    void window.loadURL(getRendererUrl());
-    if (isDev) {
-        window.webContents.openDevTools({ mode: "detach" });
-    }
-
-    window.on("closed", () => {
-        if (mainWindow === window) {
-            mainWindow = null;
-        }
-    });
-
-    mainWindow = window;
-}
+const desktopRuntimeLayer = desktopApplicationLayer.pipe(Layer.provideMerge(NodeServices.layer), Layer.provideMerge(electronLayer));
 
 const config = createConfigStore({
     app,

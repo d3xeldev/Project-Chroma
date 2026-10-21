@@ -20,7 +20,7 @@ export class ElectronShell extends Context.Service<
     {
         readonly openExternal: (rawUrl: unknown) => Effect.Effect<boolean>;
     }
->()("@app/desktop/electron/ElectronShell") {}
+>()("@luma/desktop/electron/ElectronShell") {}
 
 export const make = ElectronShell.of({
     openExternal: rawUrl =>

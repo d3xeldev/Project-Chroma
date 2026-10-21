@@ -8,19 +8,20 @@
     "main": "dist-electron/main.cjs",
     "scripts": {
         "start": "node scripts/start-electron.mjs",
-        "bundle:binaries": "node scripts/bundle-binaries.mjs",
         "build": "vite build --mode main && vite build --mode preload",
         "package": "electron-builder --publish never",
         "release": "electron-builder --publish always",
         "rebuild": "pnpm run rebuild:electron && pnpm run rebuild:sharp",
         "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
         "rebuild:sharp": "cd ./node_modules/sharp && pnpm run build",
+        "bundle:binaries": "node scripts/bundle-binaries.mjs",
         "ensure:electron": "node scripts/ensure-electron-runtime.mjs",
         "test": "vitest run",
         "test:watch": "vitest",
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
+        "@effect/platform-node": "catalog:",
         "@luma/contracts": "workspace:*",
         "@luma/shared": "workspace:*",
         "better-sqlite3": "^12.5.0",
@@ -40,8 +41,8 @@
         "electron-builder": "^26.15.3",
         "node-addon-api": "^8.9.2",
         "node-gyp": "^13.0.2",
-        "tsdown": "^0.22.0",
         "typescript": "catalog:",
+        "vite": "catalog:",
         "vitest": "catalog:"
     },
     "build": {

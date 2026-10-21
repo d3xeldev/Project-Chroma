@@ -1,6 +1,6 @@
 import { nativeTheme } from "electron";
 import { Context, Effect, Layer, Schema } from "effect";
-import { DesktopTheme } from "@recall/contracts/desktop";
+import { DesktopTheme } from "@luma/contracts";
 
 export class ElectronThemeSetSourceError extends Schema.TaggedError<ElectronThemeSetSourceError>()("ElectronThemeSetSourceError", {
     source: DesktopTheme,
@@ -17,7 +17,7 @@ export class ElectronTheme extends Context.Service<
         readonly shouldUseDarkColors: Effect.Effect<boolean>;
         readonly setSource: (theme: DesktopTheme) => Effect.Effect<void, ElectronThemeSetSourceError>;
     }
->()("@app/desktop/electron/ElectronTheme") {}
+>()("@luma/desktop/electron/ElectronTheme") {}
 
 export const make = ElectronTheme.of({
     shouldUseDarkColors: Effect.sync(() => nativeTheme.shouldUseDarkColors),

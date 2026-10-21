@@ -5,6 +5,8 @@ export const ipc = {
     CONFIRM_DIALOG: "desktop:confirm-dialog",
     PICK_FOLDER: "desktop:pick-folder",
     SHOW_CONTEXT_MENU: "desktop:show-context-menu",
+    PICK_FILES: "desktop:pick-files",
+    WINDOW_ACTION: "desktop:window-action",
 
     GET_UPDATE_STATE: "desktop:get-update-state",
     SET_UPDATE_CHANNEL: "desktop:set-update-channel",
@@ -14,4 +16,15 @@ export const ipc = {
 
     UPDATE_STATE: "desktop:update-state",
     MENU_ACTION: "desktop:menu-action",
+
+    // Window
+
+    GET_APP_INFO: "desktop:get-app-info",
+    SET_THEME: "desktop:set-theme",
+    OPEN_EXTERNAL: "desktop:open-external",
+    CONFIRM_DIALOG: "desktop:confirm-dialog",
+    PICK_FOLDER: "desktop:pick-folder",
+    SHOW_CONTEXT_MENU: "desktop:show-context-menu",
+    PICK_FILES: "desktop:pick-files",
+    WINDOW_ACTION: "desktop:window-action",
 } as const;

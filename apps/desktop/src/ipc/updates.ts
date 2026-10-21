@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { DesktopUpdateChannel, DesktopUpdateState } from "@recall/contracts";
+import { DesktopUpdateChannel, DesktopUpdateState } from "@luma/contracts";
 import { ipc } from "../channels.ts";
 
 import * as DesktopIpc from "../app/DesktopIpc.ts";

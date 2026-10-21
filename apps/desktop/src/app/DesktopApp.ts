@@ -1,7 +1,6 @@
 import { Cause, Crypto, Effect, Ref } from "effect";
 import { makeComponentLogger } from "./DesktopObservability.ts";
 
-import * as DesktopBackendManager from "./DesktopBackendManager.ts";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import * as DesktopIpcHandlers from "./DesktopIpcHandlers.ts";
 import * as DesktopLifecycle from "./DesktopLifecycle.ts";
@@ -40,7 +39,6 @@ const handleFatalStartupError = Effect.fn("desktop.startup.handleFatalStartupErr
 const fatalStartupCause = (stage: string, cause: Cause.Cause<unknown>) => handleFatalStartupError(stage, cause).pipe(Effect.andThen(Effect.failCause(cause)));
 
 const bootstrap = Effect.gen(function* () {
-    const manager = yield* DesktopBackendManager.DesktopBackendManager;
     const state = yield* DesktopState.DesktopState;
     yield* logBootstrapInfo("bootstrap start");
 
@@ -90,7 +88,7 @@ const scopedProgram = Effect.scoped(
         const shutdown = yield* DesktopShutdown.DesktopShutdown;
         const manager = yield* DesktopBackendManager.DesktopBackendManager;
 
-        yield* Effect.addFinalizer(() => manager.stop.pipe(Effect.ensuring(shutdown.markComplete)));
+        yield* Effect.addFinalizer(() => shutdown.markComplete);
 
         yield* startup;
         yield* shutdown.awaitRequest;

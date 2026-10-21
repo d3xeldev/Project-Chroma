@@ -1,6 +1,6 @@
 import { BrowserWindow, Menu, type MenuItemConstructorOptions } from "electron";
 import { Context, Effect, Layer, Option } from "effect";
-import type { ContextMenuItem } from "@recall/contracts/desktop";
+import type { ContextMenuItem } from "@luma/contracts";
 
 export interface ElectronMenuPosition {
     readonly x: number;
@@ -19,7 +19,7 @@ export class ElectronMenu extends Context.Service<
         readonly showContextMenu: (input: ElectronMenuContextInput) => Effect.Effect<Option.Option<string>>;
         readonly setApplicationMenu: (template: readonly MenuItemConstructorOptions[]) => Effect.Effect<void>;
     }
->()("@app/desktop/electron/ElectronMenu") {}
+>()("@luma/desktop/electron/ElectronMenu") {}
 
 const normalizePosition = (position: Option.Option<ElectronMenuPosition>): Option.Option<ElectronMenuPosition> =>
     Option.filter(position, ({ x, y }) => Number.isFinite(x) && Number.isFinite(y) && x >= 0 && y >= 0).pipe(Option.map(({ x, y }) => ({ x: Math.floor(x), y: Math.floor(y) })));

@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Option, Predicate, Ref, Schema } from "effect";
-import { DesktopUpdateChannel, type DesktopUpdateState, type DesktopUpdateStatus } from "@recall/contracts";
+import { DesktopUpdateChannel, type DesktopUpdateState, type DesktopUpdateStatus } from "@luma/contracts";
 import { makeComponentLogger } from "./DesktopObservability.ts";
-import { ipc } from "../ipc/channels.ts";
+import { ipc } from "../channels.ts";
 
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import * as DesktopSettings from "./DesktopSettings.ts";

@@ -1,6 +1,6 @@
 import * as Electron from "electron";
 import { Context, Effect, Layer, Option, Ref, Schema } from "effect";
-import { HostProcessPlatform } from "@recall/shared/hostProcess";
+import { HostProcessPlatform } from "@luma/shared/hostProcess";
 
 const ElectronWindowCreateOptions = Schema.Struct({
     title: Schema.NullOr(Schema.String),
@@ -76,7 +76,7 @@ export class ElectronWindow extends Context.Service<
         readonly onClosed: (window: Electron.BrowserWindow, handler: () => void) => Effect.Effect<void>;
         readonly setWindowOpenHandler: (window: Electron.BrowserWindow, handler: Parameters<Electron.WebContents["setWindowOpenHandler"]>[0]) => Effect.Effect<void>;
     }
->()("@app/desktop/electron/ElectronWindow") {}
+>()("@luma/desktop/electron/ElectronWindow") {}
 
 export const make = Effect.gen(function* () {
     const platform = yield* HostProcessPlatform;
